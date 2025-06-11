@@ -32,10 +32,7 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
   const ageString = getAge(cat.birthYear);
 
   return (
-    // Добавляем relative для позиционирования кнопок на больших экранах
     <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md relative">
-
-      {/* Кнопки для больших экранов (абсолютное позиционирование) */}
       <div className="hidden sm:flex absolute top-6 right-6 items-center gap-2 flex-shrink-0">
           <Button onClick={onInfoClick} variant="secondary" className="p-2 h-12 w-12 rounded-full">
               <Info size={28} />
@@ -51,8 +48,6 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
             </>
           )}
       </div>
-
-      {/* Основной контент */}
       <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-4">
         <img
           src={cat.avatarUrl || ''}
@@ -77,8 +72,6 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
             </div>
         </div>
       </div>
-
-      {/* Кнопки для мобильных экранов (отображаются внизу блока) */}
       <div className="sm:hidden flex justify-center items-center gap-3 mt-4 pt-4 border-t border-brand-border">
           <Button onClick={onInfoClick} variant="secondary" className="flex-1 py-3">
               <Info size={22} className="mr-2"/> Инфо

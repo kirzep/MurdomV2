@@ -10,45 +10,36 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// СНАЧАЛА ОПРЕДЕЛЯЕМ ВСЕ ENUM'ы
+// --- Enums ---
+
 enum Role {
   VOLUNTEER
   MEDICAL_STAFF
   TRUSTED_PERSON
+  DEVELOPER // Добавлена новая роль
 }
 
+// ... остальная часть схемы без изменений ...
 enum TreatmentType {
   WORMS
   FLEAS
   EAR_MITES
-}
-
-enum DocumentCategory {
-  RECEIPT
-  ANALYSES
-  REPORTS
-  DEWORMING
-  FLEA_TREATMENT
-  EAR_MITE_TREATMENT
   VACCINATION
-  ILLNESS_REPORT
 }
-
-// ТЕПЕРЬ ОПРЕДЕЛЯЕМ МОДЕЛИ
 
 model User {
-  id            String    @id @default(cuid())
-  name          String
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          Role      @default(VOLUNTEER)
-  accounts      Account[]
-  sessions      Session[]
-  createdCats   Cat[]     @relation("Creator")
-  sentMessages  Message[] @relation("Sender")
-  auditLogs     AuditLog[]
+  id               String    @id @default(cuid())
+  name             String
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             Role      @default(VOLUNTEER)
+  accounts         Account[]
+  sessions         Session[]
+  createdCats      Cat[]     @relation("Creator")
+  sentMessages     Message[] @relation("Sender")
+  auditLogs        AuditLog[]
 }
 
 model Account {
@@ -115,14 +106,13 @@ model Treatment {
 }
 
 model Document {
-  id        String           @id @default(cuid())
+  id        String   @id @default(cuid())
   catId     String
-  cat       Cat              @relation(fields: [catId], references: [id], onDelete: Cascade)
+  cat       Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
   fileName  String
   filePath  String
   fileType  String
-  category  DocumentCategory
-  createdAt DateTime         @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Message {

@@ -16,9 +16,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     try {
         const body = await request.json();
-        const { fileName, filePath, fileType, category } = body;
+        const { fileName, filePath, fileType } = body;
 
-        if (!fileName || !filePath || !fileType || !category) {
+        if (!fileName || !filePath || !fileType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
@@ -36,7 +36,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
                     fileName,
                     filePath,
                     fileType,
-                    category,
                 },
             })
         ]);
@@ -82,7 +81,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
                 prisma.auditLog.create({
                     data: {
                         change: `удалил(а) документ: "${documentToDelete.fileName}"`,
-                        catId: params.id, // Используем catId из найденного документа
+                        catId: documentToDelete.catId,
                         userId: session.user.id,
                     }
                 }),

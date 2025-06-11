@@ -2,7 +2,7 @@
 "use client";
 
 import { Cat, TreatmentType } from "@/types";
-import { Plus, Trash2, Pill, Bug, Ear } from 'lucide-react';
+import { Plus, Trash2, Pill, Bug, Ear, Syringe } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import Button from "@/app/components/ui/Button";
@@ -18,6 +18,7 @@ const treatmentMeta = {
   [TreatmentType.WORMS]: { name: 'от глистов', icon: Pill, color: 'text-rose-500' },
   [TreatmentType.FLEAS]: { name: 'от блох', icon: Bug, color: 'text-green-500' },
   [TreatmentType.EAR_MITES]: { name: 'от ушных клещей', icon: Ear, color: 'text-sky-500' },
+  [TreatmentType.VACCINATION]: { name: 'вакцинация', icon: Syringe, color: 'text-blue-500' },
 };
 
 const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ cat, canEdit, onAddClick, onDeleteClick }) => {
@@ -46,7 +47,7 @@ const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ cat, canEdit, onA
                   <Icon size={32} className={`${meta.color} flex-shrink-0`} />
                   <div className="truncate">
                     <p className="font-semibold text-brand-text-primary truncate">{t.productName}</p>
-                    <p className="text-sm text-brand-text-secondary">{`Обработка ${meta.name}`}</p>
+                    <p className="text-sm text-brand-text-secondary capitalize">{meta.name}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">

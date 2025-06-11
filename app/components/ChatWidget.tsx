@@ -84,7 +84,8 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
               const isSender = msg.senderId === session?.user.id;
               return (
                 <div key={msg.id} className={`flex gap-3 items-end ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
-                  <Link href={`/users/${msg.sender.id}`}>
+                  {/* ИСПРАВЛЕНИЕ: Ссылка теперь ведет на /view-profile/ID */}
+                  <Link href={`/view-profile/${msg.sender.id}`}>
                     <img 
                       src={msg.sender.image || `https://placehold.co/40x40/e2e8f0/64748b?text=${msg.sender.name.charAt(0)}`} 
                       alt={msg.sender.name}

@@ -2,7 +2,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-// ИСПРАВЛЕН ПУТЬ: Используем абсолютный путь через @
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // GET-запрос для получения публичного профиля пользователя по ID

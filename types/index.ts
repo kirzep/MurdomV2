@@ -4,31 +4,23 @@ export enum Role {
   VOLUNTEER = 'VOLUNTEER',
   MEDICAL_STAFF = 'MEDICAL_STAFF',
   TRUSTED_PERSON = 'TRUSTED_PERSON',
+  DEVELOPER = 'DEVELOPER', // Добавлено
 }
 
+// ... остальная часть файла без изменений ...
 export interface User {
   id: string;
   name: string;
   email?: string | null;
   role: Role;
-  image?: string | null; // Добавлено поле для аватара
+  image?: string | null;
 }
 
 export enum TreatmentType {
   WORMS = 'WORMS',
   FLEAS = 'FLEAS',
   EAR_MITES = 'EAR_MITES',
-}
-
-export enum DocumentCategory {
-  RECEIPT = 'RECEIPT',
-  ANALYSES = 'ANALYSES',
-  REPORTS = 'REPORTS',
-  DEWORMING = 'Дегельминтизация',
-  FLEA_TREATMENT = 'Обработка от блох',
-  EAR_MITE_TREATMENT: 'Обработка от клещей',
-  VACCINATION = 'Вакцинация',
-  ILLNESS_REPORT: 'Выписка по болезни',
+  VACCINATION = 'VACCINATION',
 }
 
 export interface Treatment {
@@ -46,7 +38,6 @@ export interface Document {
   fileName: string;
   filePath: string;
   fileType: string;
-  category: DocumentCategory;
   createdAt: string;
 }
 
@@ -73,7 +64,7 @@ export interface Message {
   sender: {
       id: string;
       name: string;
-      image?: string | null; // Добавлено поле для аватара в чате
+      image?: string | null;
   };
 }
 

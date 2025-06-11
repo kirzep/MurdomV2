@@ -3,13 +3,16 @@
 
 import React from 'react';
 
+// Добавляем 'type' в интерфейс, чтобы он был явным
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'danger';
   isLoading?: boolean;
 }
 
-const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', isLoading = false, className = '', ...props }) => {
+// Устанавливаем type="button" по умолчанию, чтобы избежать случайной отправки форм.
+// Кнопка будет иметь type="submit" только если мы укажем это явно.
+const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', isLoading = false, className = '', type = 'button', ...props }) => {
   const baseClasses = 'px-4 py-2 rounded-lg font-semibold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantClasses = {
@@ -20,6 +23,7 @@ const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', isLoadin
 
   return (
     <button
+      type={type}
       className={`${baseClasses} ${variantClasses[variant]} ${className}`}
       disabled={isLoading || props.disabled}
       {...props}

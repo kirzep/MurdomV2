@@ -13,6 +13,7 @@ declare module 'next-auth' {
       name: string;
       email: string;
       role: Role;
+      image?: string | null; // Добавляем аватар в сессию
     };
   }
   interface User extends NextAuthUser {
@@ -26,6 +27,7 @@ declare module 'next-auth/jwt' {
     role: Role;
     name: string;
     email: string;
+    picture?: string | null; // Используем 'picture' для аватара в токене
   }
 }
 
@@ -43,20 +45,17 @@ export const authOptions: AuthOptions = {
                     return null;
                 }
                 
-                // Ищем пользователя в базе данных по email
                 const user = await prisma.user.findUnique({
                     where: { email: credentials.email },
                 });
 
-                // В реальном приложении здесь должна быть проверка хешированного пароля.
-                // Для простоты мы сравниваем пароли напрямую.
                 if (user && user.password === credentials.password) {
-                    // Возвращаем все необходимые данные
                     return { 
                         id: user.id, 
                         name: user.name, 
                         email: user.email, 
-                        role: user.role 
+                        role: user.role,
+                        image: user.image,
                     };
                 } else {
                     return null;
@@ -73,13 +72,26 @@ export const authOptions: AuthOptions = {
     },
     callbacks: {
         // Вызывается при создании JWT
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
+            // При первом входе
             if (user) {
                 token.id = user.id;
                 token.role = user.role;
                 token.name = user.name || '';
                 token.email = user.email || '';
+                token.picture = user.image;
             }
+
+            // ИСПРАВЛЕНИЕ: Когда мы вызываем update(), этот блок срабатывает
+            if (trigger === "update") {
+                // Перезагружаем пользователя из базы данных, чтобы получить свежие данные
+                const dbUser = await prisma.user.findUnique({ where: { id: token.id } });
+                if (dbUser) {
+                    token.name = dbUser.name;
+                    token.picture = dbUser.image;
+                }
+            }
+
             return token;
         },
         // Вызывается при создании сессии
@@ -89,6 +101,7 @@ export const authOptions: AuthOptions = {
                 session.user.role = token.role;
                 session.user.name = token.name;
                 session.user.email = token.email;
+                session.user.image = token.picture; // Передаем аватар из токена в сессию
             }
             return session;
         },

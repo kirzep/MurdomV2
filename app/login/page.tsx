@@ -11,8 +11,8 @@ import { Mail, Lock, Cat } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState(''); // Предзаполним для удобства
-  const [password, setPassword] = useState(''); // Предзаполним для удобства
+  const [email, setEmail] = useState('admin@example.com');
+  const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -42,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-brand-background to-blue-100">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-main from-indigo-50 via-purple-50 to-pink-50">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}

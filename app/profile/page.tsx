@@ -1,19 +1,21 @@
 // app/profile/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Spinner from '../components/ui/Spinner';
-import { User, Shield, Edit, Save, Camera } from 'lucide-react';
+import Spinner from '@/app/components/ui/Spinner';
+import { Role } from '@/types';
+import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck } from 'lucide-react';
 import Link from 'next/link';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
+import Button from '@/app/components/ui/Button';
+import Input from '@/app/components/ui/Input';
 
 const roleNames = {
     VOLUNTEER: 'Волонтёр',
     MEDICAL_STAFF: 'Мед. персонал',
     TRUSTED_PERSON: 'Доверенное лицо',
+    DEVELOPER: 'Разработчик', // Добавлено
 };
 
 export default function ProfilePage() {
@@ -41,7 +43,16 @@ export default function ProfilePage() {
         }
     };
 
-    const handleProfileUpdate = async (e: React.FormEvent) => {
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        if (session?.user) {
+            setName(session.user.name);
+            setAvatarPreview(session.user.image || null);
+            setAvatarFile(null);
+        }
+    }
+
+    const handleProfileUpdate = async (e: FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
 
@@ -58,24 +69,25 @@ export default function ProfilePage() {
             });
 
             if (!response.ok) {
-                throw new Error('Не удалось обновить профиль');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Не удалось обновить профиль');
             }
-
-            // Обновляем сессию, чтобы изменения отразились немедленно
-            await update({ name, image: avatarPreview });
+            
+            await update();
             alert('Профиль успешно обновлен!');
             setIsEditing(false);
+            setAvatarFile(null);
 
         } catch (error) {
             console.error(error);
-            alert('Произошла ошибка при обновлении профиля.');
+            alert((error as Error).message);
         } finally {
             setIsLoading(false);
         }
     };
 
     if (status === 'loading') {
-        return <div className="h-screen"><Spinner /></div>;
+        return <div className="h-screen flex items-center justify-center"><Spinner /></div>;
     }
 
     if (status === 'unauthenticated') {
@@ -83,11 +95,16 @@ export default function ProfilePage() {
         return null;
     }
 
-    const user = session?.user;
-
     return (
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-2xl mx-auto">
+                <div className="mb-4">
+                     <Link href="/dashboard" className="flex items-center gap-2 text-brand-primary hover:underline font-semibold w-fit">
+                        <ArrowLeft size={18} />
+                        Вернуться в архив
+                    </Link>
+                </div>
+
                 <form onSubmit={handleProfileUpdate} className="bg-brand-surface/80 backdrop-blur-lg p-8 rounded-2xl shadow-lg">
                     <div className="flex flex-col items-center text-center">
                         <div className="relative w-32 h-32 mb-4">
@@ -103,44 +120,48 @@ export default function ProfilePage() {
                                 </label>
                             )}
                         </div>
-
-                        {isEditing ? (
-                            <Input 
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0"
-                            />
-                        ) : (
-                            <h1 className="text-4xl font-bold text-brand-text-primary">{user?.name}</h1>
-                        )}
                         
-                        <p className="text-lg text-brand-text-secondary mt-1">{user?.email}</p>
+                        <div className='flex items-center gap-2'>
+                            {isEditing ? (
+                                <Input 
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0 p-0"
+                                />
+                            ) : (
+                                <h1 className="text-4xl font-bold text-brand-text-primary">{session?.user.name}</h1>
+                            )}
+                            {session?.user.role === Role.DEVELOPER && (
+                                <BadgeCheck size={32} className="text-blue-500" />
+                            )}
+                        </div>
+                        
+                        <p className="text-lg text-brand-text-secondary mt-1">{session?.user.email}</p>
 
                         <div className="mt-6 bg-brand-background px-4 py-2 rounded-full flex items-center gap-2 text-brand-text-primary">
                             <Shield size={20} className="text-brand-primary" />
                             <span className="font-semibold">Роль:</span>
-                            <span>{user?.role ? roleNames[user.role] : 'Не определена'}</span>
+                            <span>{session?.user.role ? roleNames[session.user.role] : 'Не определена'}</span>
                         </div>
                     </div>
 
                     <div className="mt-8 flex justify-center gap-4">
                         {isEditing ? (
-                            <Button type="submit" isLoading={isLoading}>
-                                <Save size={20} className="mr-2"/> Сохранить
-                            </Button>
+                            <>
+                                <Button type="button" onClick={handleCancelEdit} variant="secondary">
+                                    Отмена
+                                </Button>
+                                <Button type="submit" isLoading={isLoading}>
+                                    <Save size={20} className="mr-2"/> Сохранить
+                                </Button>
+                            </>
                         ) : (
-                            <Button type="button" onClick={() => setIsEditing(true)} variant="secondary">
-                                <Edit size={20} className="mr-2"/> Редактировать профиль
+                            <Button type="button" onClick={() => setIsEditing(true)}>
+                                <Edit size={20} className="mr-2"/> Редактировать
                             </Button>
                         )}
                     </div>
                 </form>
-
-                <div className="text-center mt-8">
-                    <Link href="/dashboard" className="text-brand-primary hover:underline font-semibold">
-                        Вернуться в архив
-                    </Link>
-                </div>
             </div>
         </div>
     );
