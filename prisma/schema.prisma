@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// СНАЧАЛА ОПРЕДЕЛЯЕМ ВСЕ ENUM'ы
+enum Role {
+  VOLUNTEER
+  MEDICAL_STAFF
+  TRUSTED_PERSON
+}
+
+enum TreatmentType {
+  WORMS
+  FLEAS
+  EAR_MITES
+}
+
+enum DocumentCategory {
+  RECEIPT
+  ANALYSES
+  REPORTS
+  DEWORMING
+  FLEA_TREATMENT
+  EAR_MITE_TREATMENT
+  VACCINATION
+  ILLNESS_REPORT
+}
+
+// ТЕПЕРЬ ОПРЕДЕЛЯЕМ МОДЕЛИ
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(VOLUNTEER)
+  accounts      Account[]
+  sessions      Session[]
+  createdCats   Cat[]     @relation("Creator")
+  sentMessages  Message[] @relation("Sender")
+  auditLogs     AuditLog[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Cat {
+  id          String     @id @default(cuid())
+  name        String
+  avatarUrl   String?
+  arrivalDate DateTime?
+  birthYear   Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  notes       String?
+
+  creatorId String?
+  creator   User?      @relation("Creator", fields: [creatorId], references: [id])
+
+  treatments Treatment[]
+  documents  Document[]
+  auditLogs  AuditLog[]
+}
+
+model Treatment {
+  id          String        @id @default(cuid())
+  catId       String
+  cat         Cat           @relation(fields: [catId], references: [id], onDelete: Cascade)
+  type        TreatmentType
+  date        DateTime
+  productName String
+  createdAt   DateTime      @default(now())
+}
+
+model Document {
+  id        String           @id @default(cuid())
+  catId     String
+  cat       Cat              @relation(fields: [catId], references: [id], onDelete: Cascade)
+  fileName  String
+  filePath  String
+  fileType  String
+  category  DocumentCategory
+  createdAt DateTime         @default(now())
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  content    String
+  createdAt  DateTime @default(now())
+  senderId   String
+  sender     User     @relation("Sender", fields: [senderId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  change    String
+  catId     String
+  cat       Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
