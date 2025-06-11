@@ -11,8 +11,8 @@ import { Mail, Lock, Cat } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@example.com'); // Предзаполним для удобства
-  const [password, setPassword] = useState('password123'); // Предзаполним для удобства
+  const [email, setEmail] = useState(''); // Предзаполним для удобства
+  const [password, setPassword] = useState(''); // Предзаполним для удобства
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
