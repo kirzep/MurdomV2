@@ -1,3 +1,5 @@
 node_modules
-public
+public/uploads
 .next
+prisma/dev.db
+prisma/migrations
