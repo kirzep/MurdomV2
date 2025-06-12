@@ -2,29 +2,44 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { Role, TreatmentType } from '@prisma/client';
 
 const treatmentTypeMap: Record<TreatmentType, string> = {
-  [TreatmentType.WORMS]: 'от глистов', [TreatmentType.FLEAS]: 'от блох',
-  [TreatmentType.EAR_MITES]: 'от ушных клещей', [TreatmentType.VACCINATION]: 'вакцинация',
+  [TreatmentType.WORMS]: 'от глистов',
+  [TreatmentType.FLEAS]: 'от блох',
+  [TreatmentType.EAR_MITES]: 'от ушных клещей',
+  [TreatmentType.VACCINATION]: 'вакцинация',
 };
+
+// Функция для проверки, является ли строка допустимым типом обработки
+function isValidTreatmentType(type: any): type is TreatmentType {
+    return Object.values(TreatmentType).includes(type);
+}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
-    const allowedRoles = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
+    const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     try {
         const body = await request.json();
         const { type, date, productName } = body;
-        if (!type || !date || !productName) {
+
+        // ИСПРАВЛЕНИЕ: Используем функцию-предохранитель для проверки типа
+        if (!isValidTreatmentType(type)) {
+            return NextResponse.json({ error: 'Invalid or missing treatment type' }, { status: 400 });
+        }
+
+        if (!date || !productName) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
+        
         const [, newTreatment] = await prisma.$transaction([
             prisma.auditLog.create({
                 data: {
+                    // Теперь TypeScript уверен, что 'type' имеет правильный тип
                     change: `добавил(а) обработку ${treatmentTypeMap[type]}: "${productName}"`,
                     catId: params.id, userId: session.user.id,
                 }
@@ -40,7 +55,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
-    const allowedRoles = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
+    const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

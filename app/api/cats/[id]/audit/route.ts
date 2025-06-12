@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 // GET-запрос для получения логов для одной кошки
 export async function GET(request: Request, { params }: { params: { id: string } }) {
@@ -14,12 +14,12 @@ export async function GET(request: Request, { params }: { params: { id: string }
     try {
         const auditLogs = await prisma.auditLog.findMany({
             where: { catId: params.id },
-            take: 5, // Берем только последние 5 записей
+            take: 5,
             orderBy: { createdAt: 'desc' },
             include: { 
                 user: {
                     select: {
-                        name: true, // Выбираем только нужные поля
+                        name: true,
                     }
                 } 
             },

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 import { Role } from '@prisma/client';
@@ -32,7 +32,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 // DELETE-запрос (только для персонала)
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
-    const allowedRoles = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
+    // ИСПРАВЛЕНИЕ: Явно указываем тип массива
+    const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -59,7 +60,8 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 // PATCH-запрос с логированием (только для персонала)
 export async function PATCH(request: Request, { params }: { params: { id:string } }) {
     const session = await getServerSession(authOptions);
-    const allowedRoles = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
+    // ИСПРАВЛЕНИЕ: Явно указываем тип массива
+    const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

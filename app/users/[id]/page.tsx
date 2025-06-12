@@ -4,15 +4,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { User } from '@/types';
+import { User, Role } from '@/types';
 import Spinner from '@/app/components/ui/Spinner';
-import { Shield, ArrowLeft } from 'lucide-react';
+import { Shield, ArrowLeft, BadgeCheck } from 'lucide-react';
 import Link from 'next/link';
 
 const roleNames = {
     VOLUNTEER: 'Волонтёр',
     MEDICAL_STAFF: 'Мед. персонал',
     TRUSTED_PERSON: 'Доверенное лицо',
+    DEVELOPER: 'Разработчик', // ИСПРАВЛЕНИЕ: Добавлена недостающая роль
 };
 
 export default function UserProfilePage() {
@@ -32,7 +33,6 @@ export default function UserProfilePage() {
         if (authStatus === 'authenticated' && id) {
             const fetchUser = async () => {
                 try {
-                    // ИСПРАВЛЕНИЕ: Обращаемся к новому, однозначному API-маршруту
                     const res = await fetch(`/api/get-user-profile?id=${id}`);
                     if (!res.ok) throw new Error('User not found');
                     const data = await res.json();
@@ -72,11 +72,17 @@ export default function UserProfilePage() {
                             alt={`Аватар ${user.name}`}
                             className="w-32 h-32 rounded-full object-cover mb-4"
                         />
-                        <h1 className="text-4xl font-bold text-brand-text-primary">{user.name}</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-4xl font-bold text-brand-text-primary">{user.name}</h1>
+                            {user.role === Role.DEVELOPER && (
+                                <BadgeCheck size={32} className="text-blue-500" />
+                            )}
+                        </div>
                         
                         <div className="mt-6 bg-brand-background px-4 py-2 rounded-full flex items-center gap-2 text-brand-text-primary">
                             <Shield size={20} className="text-brand-primary" />
                             <span className="font-semibold">Роль:</span>
+                            {/* Теперь эта строка будет работать корректно */}
                             <span>{roleNames[user.role]}</span>
                         </div>
                     </div>

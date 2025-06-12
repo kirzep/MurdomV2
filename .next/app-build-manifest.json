@@ -1,20 +1,88 @@
 {
   "pages": {
-    "/view-profile/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/view-profile/[id]/page.js"
+    "/_not-found": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/app/_not-found-7c7196994f5627b8.js"
     ],
     "/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/layout.css",
-      "static/chunks/app/layout.js"
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/css/214c142a51c877b4.css",
+      "static/chunks/app/layout-583cc9d77e7a1c6f.js"
+    ],
+    "/dashboard/cat/[id]/page": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/951-61548a366f8a23ed.js",
+      "static/chunks/251-d06e894810e41767.js",
+      "static/chunks/934-c6b2ddd8f2118a1f.js",
+      "static/chunks/513-a1c01c7bb7013892.js",
+      "static/chunks/app/dashboard/cat/[id]/page-178cb1401915b512.js"
     ],
     "/dashboard/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/page.js"
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/951-61548a366f8a23ed.js",
+      "static/chunks/251-d06e894810e41767.js",
+      "static/chunks/934-c6b2ddd8f2118a1f.js",
+      "static/chunks/441-16a9174f4b311e94.js",
+      "static/chunks/app/dashboard/page-71e631bf72c432e8.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/app/page-8c55815d7280f154.js"
+    ],
+    "/login/page": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/251-d06e894810e41767.js",
+      "static/chunks/app/login/page-52eb60b39d03edfe.js"
+    ],
+    "/profile/page": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/951-61548a366f8a23ed.js",
+      "static/chunks/app/profile/page-02d8ecd3b9298dbb.js"
+    ],
+    "/users/[id]/page": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/951-61548a366f8a23ed.js",
+      "static/chunks/app/users/[id]/page-925eecf87c2d9170.js"
+    ],
+    "/view-profile/[id]/page": [
+      "static/chunks/webpack-e2706211a2b957a1.js",
+      "static/chunks/fd9d1056-14766259694fc46e.js",
+      "static/chunks/938-ddd316d02bbde68d.js",
+      "static/chunks/main-app-e3e5406517694908.js",
+      "static/chunks/749-9632885294bd14b3.js",
+      "static/chunks/951-61548a366f8a23ed.js",
+      "static/chunks/app/view-profile/[id]/page-4c9dc0cf8c5e99b4.js"
     ]
   }
 }

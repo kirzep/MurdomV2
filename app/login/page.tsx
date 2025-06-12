@@ -1,20 +1,32 @@
 // app/login/page.tsx
 "use client";
 
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { useState, useEffect } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { Mail, Lock, Cat } from 'lucide-react';
+import Spinner from '../components/ui/Spinner';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { status } = useSession(); // Получаем статус сессии
+
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // ИСПРАВЛЕНИЕ: Добавляем useEffect для перенаправления
+  useEffect(() => {
+    // Если пользователь уже аутентифицирован, перенаправляем его в дашборд
+    if (status === 'authenticated') {
+      router.push('/dashboard');
+    }
+  }, [status, router]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +44,7 @@ export default function LoginPage() {
         setError('Неверный email или пароль. Попробуйте снова.');
         setIsLoading(false);
       } else {
-        router.push('/dashboard');
+        // NextAuth автоматически обновит статус сессии, и useEffect выше выполнит перенаправление
       }
     } catch (error) {
       console.error(error);
@@ -41,6 +53,16 @@ export default function LoginPage() {
     }
   };
 
+  // Пока идет проверка статуса аутентификации, показываем спиннер
+  if (status === 'loading' || status === 'authenticated') {
+    return (
+        <div className="h-screen w-full flex items-center justify-center">
+            <Spinner />
+        </div>
+    );
+  }
+
+  // Если пользователь не аутентифицирован, показываем форму входа
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-main from-indigo-50 via-purple-50 to-pink-50">
       <motion.div

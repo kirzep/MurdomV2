@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck } from 'lucide-react';
+import { Shield, Edit, Save, Camera, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
@@ -15,7 +15,7 @@ const roleNames = {
     VOLUNTEER: 'Волонтёр',
     MEDICAL_STAFF: 'Мед. персонал',
     TRUSTED_PERSON: 'Доверенное лицо',
-    DEVELOPER: 'Разработчик', // Добавлено
+    DEVELOPER: 'Разработчик',
 };
 
 export default function ProfilePage() {
@@ -30,7 +30,8 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (session?.user) {
-            setName(session.user.name);
+            // ИСПРАВЛЕНИЕ: Добавляем запасное значение для имени
+            setName(session.user.name ?? '');
             setAvatarPreview(session.user.image || null);
         }
     }, [session]);
@@ -46,7 +47,7 @@ export default function ProfilePage() {
     const handleCancelEdit = () => {
         setIsEditing(false);
         if (session?.user) {
-            setName(session.user.name);
+            setName(session.user.name ?? '');
             setAvatarPreview(session.user.image || null);
             setAvatarFile(null);
         }
@@ -74,6 +75,7 @@ export default function ProfilePage() {
             }
             
             await update();
+
             alert('Профиль успешно обновлен!');
             setIsEditing(false);
             setAvatarFile(null);
@@ -120,21 +122,16 @@ export default function ProfilePage() {
                                 </label>
                             )}
                         </div>
-                        
-                        <div className='flex items-center gap-2'>
-                            {isEditing ? (
-                                <Input 
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0 p-0"
-                                />
-                            ) : (
-                                <h1 className="text-4xl font-bold text-brand-text-primary">{session?.user.name}</h1>
-                            )}
-                            {session?.user.role === Role.DEVELOPER && (
-                                <BadgeCheck size={32} className="text-blue-500" />
-                            )}
-                        </div>
+
+                        {isEditing ? (
+                            <Input 
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0 p-0"
+                            />
+                        ) : (
+                            <h1 className="text-4xl font-bold text-brand-text-primary">{session?.user.name}</h1>
+                        )}
                         
                         <p className="text-lg text-brand-text-secondary mt-1">{session?.user.email}</p>
 

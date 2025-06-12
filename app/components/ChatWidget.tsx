@@ -31,8 +31,10 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
     }
   }, [messages, isOpen]);
 
+  // Загрузка истории чата и установка интервала
   useEffect(() => {
     if (!isOpen) return;
+
     const fetchHistory = async () => {
       const res = await fetch(`/api/chat/messages`);
       if (res.ok) {
@@ -41,22 +43,34 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
       }
     };
     fetchHistory();
+
     const intervalId = setInterval(fetchHistory, 5000);
+
     return () => clearInterval(intervalId);
   }, [isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !session) return;
+
     const contentToSend = newMessage.trim();
     setNewMessage('');
+    
+    // Оптимистичное обновление UI
     const tempMessage: Message = {
-      id: 'temp-' + Date.now(), content: contentToSend,
-      senderId: session!.user.id,
-      sender: { id: session!.user.id, name: session!.user.name, image: session!.user.image },
+      id: 'temp-' + Date.now(),
+      content: contentToSend,
+      senderId: session.user.id,
+      // ИСПРАВЛЕНИЕ: Добавляем запасное значение для имени и аватара
+      sender: { 
+        id: session.user.id, 
+        name: session.user.name ?? 'Пользователь', // Используем '??', чтобы обработать null и undefined
+        image: session.user.image 
+      },
       createdAt: new Date().toISOString()
     };
     setMessages(prev => [...prev, tempMessage]);
+    
     await fetch('/api/chat/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,7 +86,7 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[400px] sm:h-[600px] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-50"
+          className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[400px] sm:max-h-[600px] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-50"
         >
           <header className="flex items-center justify-between p-4 border-b border-brand-border flex-shrink-0">
             <h3 className="text-xl font-bold text-brand-primary">Общий чат</h3>
@@ -83,18 +97,14 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
             {messages.map(msg => {
               const isSender = msg.senderId === session?.user.id;
               return (
-                <div key={msg.id} className={`flex gap-3 items-end ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
-                  {/* ИСПРАВЛЕНИЕ: Ссылка теперь ведет на /view-profile/ID */}
-                  <Link href={`/view-profile/${msg.sender.id}`}>
-                    <img 
-                      src={msg.sender.image || `https://placehold.co/40x40/e2e8f0/64748b?text=${msg.sender.name.charAt(0)}`} 
-                      alt={msg.sender.name}
-                      className="w-10 h-10 rounded-full object-cover cursor-pointer"
-                    />
-                  </Link>
+                <div key={msg.id} className={`flex flex-col ${isSender ? 'items-end' : 'items-start'}`}>
+                  {!isSender && <p className="text-xs text-brand-text-secondary mb-1 ml-3">{msg.sender.name}</p>}
                   <div className={`max-w-xs p-3 rounded-2xl ${isSender ? 'bg-brand-primary text-white rounded-br-none' : 'bg-brand-background text-brand-text-primary rounded-bl-none'}`}>
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                   </div>
+                  <p className="text-xs text-brand-text-secondary mt-1 px-1">
+                    {format(new Date(msg.createdAt), 'HH:mm', { locale: ru })}
+                  </p>
                 </div>
               )
             })}

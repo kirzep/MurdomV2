@@ -66,7 +66,7 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
                 <div className="flex items-center gap-2">
                     <Calendar size={20} />
                     <span>
-                        {cat.arrivalDate ? format(new Date(cat.arrivalDate), 'd MMMM yyyy г.', { locale: ru }) : 'Дата не указана'}
+                        {cat.arrivalDate ? format(new Date(cat.arrivalDate), 'd MMMM yy', { locale: ru }) : 'Дата не указана'}
                     </span>
                 </div>
             </div>
