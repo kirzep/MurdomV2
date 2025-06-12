@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-import { Shield, Edit, Save, Camera, ArrowLeft } from 'lucide-react';
+import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
@@ -28,13 +28,15 @@ export default function ProfilePage() {
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+
     useEffect(() => {
         if (session?.user) {
-            // ИСПРАВЛЕНИЕ: Добавляем запасное значение для имени
             setName(session.user.name ?? '');
-            setAvatarPreview(session.user.image || null);
+            const imagePath = session.user.image ? `${appUrl}${session.user.image}` : null;
+            setAvatarPreview(imagePath);
         }
-    }, [session]);
+    }, [session, appUrl]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -48,7 +50,8 @@ export default function ProfilePage() {
         setIsEditing(false);
         if (session?.user) {
             setName(session.user.name ?? '');
-            setAvatarPreview(session.user.image || null);
+            const imagePath = session.user.image ? `${appUrl}${session.user.image}` : null;
+            setAvatarPreview(imagePath);
             setAvatarFile(null);
         }
     }
@@ -75,7 +78,6 @@ export default function ProfilePage() {
             }
             
             await update();
-
             alert('Профиль успешно обновлен!');
             setIsEditing(false);
             setAvatarFile(null);
@@ -97,6 +99,8 @@ export default function ProfilePage() {
         return null;
     }
 
+    const currentAvatar = avatarPreview || `https://placehold.co/128x128/e2e8f0/64748b?text=${(session?.user?.name ?? '?').charAt(0)}`;
+
     return (
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-2xl mx-auto">
@@ -111,7 +115,7 @@ export default function ProfilePage() {
                     <div className="flex flex-col items-center text-center">
                         <div className="relative w-32 h-32 mb-4">
                             <img 
-                                src={avatarPreview || `https://placehold.co/128x128/e2e8f0/64748b?text=${name.charAt(0)}`}
+                                src={currentAvatar}
                                 alt="Аватар профиля"
                                 className="w-32 h-32 rounded-full object-cover"
                             />
@@ -123,15 +127,20 @@ export default function ProfilePage() {
                             )}
                         </div>
 
-                        {isEditing ? (
-                            <Input 
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0 p-0"
-                            />
-                        ) : (
-                            <h1 className="text-4xl font-bold text-brand-text-primary">{session?.user.name}</h1>
-                        )}
+                        <div className='flex items-center gap-2'>
+                            {isEditing ? (
+                                <Input 
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0 p-0"
+                                />
+                            ) : (
+                                <h1 className="text-4xl font-bold text-brand-text-primary">{session?.user.name}</h1>
+                            )}
+                            {session?.user.role === Role.DEVELOPER && (
+                                <BadgeCheck size={32} className="text-blue-500" />
+                            )}
+                        </div>
                         
                         <p className="text-lg text-brand-text-secondary mt-1">{session?.user.email}</p>
 

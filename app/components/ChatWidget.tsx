@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { Message, User } from '@/types';
+import { Message } from '@/types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import Link from 'next/link';
@@ -20,6 +20,7 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,36 +32,25 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
     }
   }, [messages, isOpen]);
 
-  // Загрузка истории чата и установка интервала
   useEffect(() => {
     if (!isOpen) return;
-
     const fetchHistory = async () => {
-      try {
-        const res = await fetch(`/api/chat/messages`);
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(data);
-        }
-      } catch (error) {
-        console.error("Ошибка при загрузке сообщений:", error);
+      const res = await fetch(`/api/chat/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data);
       }
     };
     fetchHistory();
-
     const intervalId = setInterval(fetchHistory, 5000);
-
     return () => clearInterval(intervalId);
   }, [isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !session) return;
-
     const contentToSend = newMessage.trim();
     setNewMessage('');
-    
-    // Оптимистичное обновление UI
     const tempMessage: Message = {
       id: 'temp-' + Date.now(),
       content: contentToSend,
@@ -73,7 +63,6 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
       createdAt: new Date().toISOString()
     };
     setMessages(prev => [...prev, tempMessage]);
-    
     await fetch('/api/chat/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -99,12 +88,15 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
           <main className="flex-grow p-4 space-y-4 overflow-y-auto">
             {messages.map(msg => {
               const isSender = msg.senderId === session?.user.id;
+              const avatarSrc = msg.sender.image 
+                ? `${appUrl}${msg.sender.image}` 
+                : `https://placehold.co/40x40/e2e8f0/64748b?text=${msg.sender.name.charAt(0)}`;
+              
               return (
                 <div key={msg.id} className={`flex gap-3 items-end ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
-                  {/* ИСПРАВЛЕНИЕ: Ссылка теперь ведет на /view-profile/ID */}
                   <Link href={`/view-profile/${msg.sender.id}`} className="flex-shrink-0">
                     <img 
-                      src={msg.sender.image || `https://placehold.co/40x40/e2e8f0/64748b?text=${msg.sender.name.charAt(0)}`} 
+                      src={avatarSrc} 
                       alt={msg.sender.name}
                       className="w-10 h-10 rounded-full object-cover cursor-pointer"
                     />

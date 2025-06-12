@@ -1,9 +1,9 @@
 {
   "/_not-found": "app/_not-found.js",
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/api/cats/[id]/audit/route": "app/api/cats/[id]/audit/route.js",
   "/api/cats/[id]/documents/route": "app/api/cats/[id]/documents/route.js",
   "/api/cats/[id]/route": "app/api/cats/[id]/route.js",
-  "/api/cats/[id]/audit/route": "app/api/cats/[id]/audit/route.js",
   "/api/cats/[id]/treatments/route": "app/api/cats/[id]/treatments/route.js",
   "/api/cats/route": "app/api/cats/route.js",
   "/api/chat/messages/route": "app/api/chat/messages/route.js",

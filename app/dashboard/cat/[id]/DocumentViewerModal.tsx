@@ -17,13 +17,14 @@ interface DocumentViewerModalProps {
 const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({ doc, onClose, canEdit, onDelete }) => {
     if (!doc) return null;
 
-    // Создаем блок с кнопками для передачи в headerActions
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const fileSrc = `${appUrl}${doc.filePath}`;
+
     const actions = (
         <>
-            <a href={doc.filePath} download={doc.fileName} className="block">
-                {/* Увеличены размеры кнопок и иконок */}
+            <a href={fileSrc} download={doc.fileName} className="block">
                 <Button variant="secondary" className="p-2 h-11 w-11 rounded-full">
-                    <Download size={30} />
+                    <Download size={24} />
                 </Button>
             </a>
             {canEdit && (
@@ -42,15 +43,15 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({ doc, onClose,
             isOpen={!!doc} 
             onClose={onClose} 
             title={doc.fileName}
-            headerActions={actions} // Передаем наши кнопки в шапку
+            headerActions={actions}
         >
             <div className="max-h-[70vh] overflow-y-auto mt-4">
                 {doc.fileType.startsWith('image/') && (
-                    <img src={doc.filePath} alt={doc.fileName} className="w-full h-auto rounded-lg" />
+                    <img src={fileSrc} alt={doc.fileName} className="w-full h-auto rounded-lg" />
                 )}
                 {doc.fileType === 'application/pdf' && (
                     <embed
-                        src={doc.filePath}
+                        src={fileSrc}
                         type="application/pdf"
                         className="w-full h-[65vh] border-0 rounded-lg"
                     />

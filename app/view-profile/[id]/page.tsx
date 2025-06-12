@@ -13,7 +13,7 @@ const roleNames = {
     VOLUNTEER: 'Волонтёр',
     MEDICAL_STAFF: 'Мед. персонал',
     TRUSTED_PERSON: 'Доверенное лицо',
-    DEVELOPER: 'Разработчик', // Добавлено
+    DEVELOPER: 'Разработчик',
 };
 
 export default function UserProfilePage() {
@@ -23,6 +23,9 @@ export default function UserProfilePage() {
 
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Получаем базовый URL из переменных окружения
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
     useEffect(() => {
         if (authStatus === 'unauthenticated') {
@@ -55,6 +58,10 @@ export default function UserProfilePage() {
     if (!user) {
         return <div className="text-center p-8">Пользователь не найден.</div>;
     }
+    
+    const avatarSrc = user.image 
+      ? `${appUrl}${user.image}` 
+      : `https://placehold.co/128x128/e2e8f0/64748b?text=${user.name.charAt(0)}`;
 
     return (
         <div className="min-h-screen p-4 sm:p-8">
@@ -68,7 +75,7 @@ export default function UserProfilePage() {
                 <div className="bg-brand-surface/80 backdrop-blur-lg p-8 rounded-2xl shadow-lg">
                     <div className="flex flex-col items-center text-center">
                         <img 
-                            src={user.image || `https://placehold.co/128x128/e2e8f0/64748b?text=${user.name.charAt(0)}`}
+                            src={avatarSrc}
                             alt={`Аватар ${user.name}`}
                             className="w-32 h-32 rounded-full object-cover mb-4"
                         />

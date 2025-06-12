@@ -28,11 +28,17 @@ const MurDomLogo = () => (
 export const CatReportTemplate = forwardRef<HTMLDivElement, CatReportTemplateProps>(({ cat }, ref) => {
   const age = cat.birthYear ? `${new Date().getFullYear() - cat.birthYear} лет` : 'Не указан';
   
+  // Формируем абсолютный URL для аватара
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const avatarSrc = cat.avatarUrl 
+    ? `${appUrl}${cat.avatarUrl}` 
+    : `https://placehold.co/112x112/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+  
   return (
     <div ref={ref} className="bg-white text-gray-800 p-10 font-sans" style={{ width: '210mm', minHeight: '297mm' }}>
       <header className="flex items-start justify-between pb-4 border-b-2 border-gray-200">
         <div className="flex items-center gap-6">
-            <img src={cat.avatarUrl || ''} crossOrigin="anonymous" alt={cat.name} className="w-28 h-28 rounded-full object-cover border-4 border-indigo-100"/>
+            <img src={avatarSrc} crossOrigin="anonymous" alt={cat.name} className="w-28 h-28 rounded-full object-cover border-4 border-indigo-100"/>
             <div>
               <h1 className="text-4xl font-bold text-indigo-600">{cat.name}</h1>
               <p className="text-gray-500 text-xl">Медицинская карта</p>
