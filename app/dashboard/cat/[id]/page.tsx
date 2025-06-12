@@ -1,13 +1,13 @@
 // app/dashboard/cat/[id]/page.tsx
 "use client";
 
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, FormEvent, useRef } from "react";
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import { Cat, Role, Document as DocType, TreatmentType, AuditLog as AuditLogType } from "@/types";
 import Spinner from "@/app/components/ui/Spinner";
 import CatProfileHeader from "./CatProfileHeader";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileDown } from "lucide-react";
 import Link from "next/link";
 import NotesSection from "./NotesSection";
 import TreatmentsSection from "./TreatmentsSection";
@@ -18,6 +18,10 @@ import DocumentViewerModal from "./DocumentViewerModal";
 import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import AuditLogModal from './AuditLogModal';
+import { CatReportTemplate } from "./CatReportTemplate";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
 
 const treatmentMeta = {
   [TreatmentType.WORMS]: { name: 'от глистов' },
@@ -34,19 +38,15 @@ export default function CatProfilePage() {
     const [cat, setCat] = useState<Cat | null>(null);
     const [auditLogs, setAuditLogs] = useState<AuditLogType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const reportRef = useRef<HTMLDivElement>(null);
     
-    // ИСПРАВЛЕНИЕ: Добавляем роль DEVELOPER в проверку прав
-    const canEdit = 
-        session?.user.role === Role.MEDICAL_STAFF || 
-        session?.user.role === Role.TRUSTED_PERSON ||
-        session?.user.role === Role.DEVELOPER;
-
+    const canEdit = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON || session?.user.role === Role.DEVELOPER;
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
     const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
     const [viewingDoc, setViewingDoc] = useState<DocType | null>(null);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-    
     const [treatmentForm, setTreatmentForm] = useState({ type: TreatmentType.WORMS, date: '', productName: '' });
     const [docForm, setDocForm] = useState({ file: null as File | null, customFileName: '' });
     const [isFormLoading, setIsFormLoading] = useState(false);
@@ -59,10 +59,8 @@ export default function CatProfilePage() {
                 fetch(`/api/cats/${id}/audit`),
             ]);
             if (!catRes.ok) throw new Error("Cat not found");
-            
             const catData = await catRes.json();
             const logData = await logRes.json();
-            
             setCat(catData);
             setAuditLogs(logData);
         } catch (error) {
@@ -72,17 +70,17 @@ export default function CatProfilePage() {
             setIsLoading(false);
         }
     };
-    
+
     useEffect(() => {
         if (status === 'authenticated') {
             setIsLoading(true);
             fetchCatDataAndLogs();
         }
     }, [id, status]);
-    
+
     useEffect(() => {
         if (docForm.file) {
-            setDocForm(prevForm => ({ ...prevForm, customFileName: prevForm.file!.name.substring(0, prevForm.file!.name.lastIndexOf('.')) || prevForm.file!.name }));
+            setDocForm(prev => ({ ...prev, customFileName: prev.file!.name.substring(0, prev.file!.name.lastIndexOf('.')) || prev.file!.name }));
         }
     }, [docForm.file]);
 
@@ -113,14 +111,14 @@ export default function CatProfilePage() {
             }
         }
     };
-    
+
     const handleDeleteTreatment = async (treatmentId: string) => {
         if (confirm('Вы уверены, что хотите удалить эту запись?')) {
             await fetch(`/api/cats/${id}/treatments?treatmentId=${treatmentId}`, { method: 'DELETE' });
             await fetchCatDataAndLogs();
         }
     };
-    
+
     const handleAddTreatment = async (e: FormEvent) => {
         e.preventDefault();
         setIsFormLoading(true);
@@ -157,6 +155,66 @@ export default function CatProfilePage() {
         setIsFormLoading(false);
         setIsAddDocModalOpen(false);
         await fetchCatDataAndLogs();
+    };
+
+    const handleExportReport = async () => {
+        if (!reportRef.current || !cat) return;
+        setIsGeneratingReport(true);
+        
+        try {
+            // Шаг 1: Создание первой страницы с основной информацией
+            const mainPageCanvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true });
+            const mainPageImgData = mainPageCanvas.toDataURL('image/png');
+            
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            pdf.addImage(mainPageImgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+            
+            // Шаг 2: Добавление страниц с изображениями
+            const imageDocs = cat.documents?.filter(doc => doc.fileType.startsWith('image/')) || [];
+
+            for (const doc of imageDocs) {
+                pdf.addPage();
+                
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = doc.filePath;
+
+                await new Promise(resolve => { img.onload = resolve; });
+                
+                const margin = 10;
+                const pageWidth = pdfWidth - margin * 2;
+                const pageHeight = pdfHeight - margin * 2;
+
+                const imgWidth = img.naturalWidth;
+                const imgHeight = img.naturalHeight;
+                const ratio = imgWidth / imgHeight;
+
+                let newWidth = pageWidth;
+                let newHeight = newWidth / ratio;
+                
+                if (newHeight > pageHeight) {
+                    newHeight = pageHeight;
+                    newWidth = newHeight * ratio;
+                }
+
+                const x = (pdfWidth - newWidth) / 2;
+                const y = (pdfHeight - newHeight) / 2;
+                
+                pdf.addImage(img, 'JPEG', x, y, newWidth, newHeight, undefined, 'FAST');
+            }
+            
+            // Шаг 3: Сохранение файла
+            pdf.save(`Карта - ${cat.name}.pdf`);
+
+        } catch (error) {
+            console.error("Ошибка при создании PDF:", error);
+            alert("Не удалось создать отчет. Попробуйте снова.");
+        } finally {
+            setIsGeneratingReport(false);
+        }
     };
     
     if (isLoading || status === 'loading' || !cat) {
@@ -207,6 +265,10 @@ export default function CatProfilePage() {
                           <ArrowLeft size={18} />
                           Назад к списку
                       </Link>
+                      <Button onClick={handleExportReport} isLoading={isGeneratingReport}>
+                        <FileDown size={20} className="mr-2"/>
+                        Экспорт в PDF
+                      </Button>
                   </div>
                 </header>
                 <main className="container mx-auto p-4 md:p-6 space-y-6">
@@ -222,6 +284,10 @@ export default function CatProfilePage() {
                         />
                     </div>
                 </main>
+            </div>
+
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <CatReportTemplate ref={reportRef} cat={cat} />
             </div>
         </>
     );

@@ -14,6 +14,18 @@ interface CatCardProps {
   cat: Cat;
 }
 
+// Варианты анимации для появления карточки
+const cardVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      duration: 0.4
+    }
+  }
+};
+
 const CatCard: React.FC<CatCardProps> = ({ cat }) => {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
@@ -33,14 +45,13 @@ const CatCard: React.FC<CatCardProps> = ({ cat }) => {
         catAddedDate={cat.createdAt}
       />
       <motion.div
-        layout
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={{ duration: 0.3 }}
-        className="relative group bg-brand-surface rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
+        variants={cardVariants} // Применяем анимацию появления
+        layout // Эта опция анимирует карточку при изменении списка (например, при поиске)
+        whileHover={{ scale: 1.03 }} // Увеличиваем при наведении
+        whileTap={{ scale: 0.98 }} // "Пружиним" при нажатии
+        className="relative group bg-brand-surface rounded-xl shadow-md overflow-hidden"
       >
-        <Link href={`/dashboard/cat/${cat.id}`} className="block">
+        <Link href={`/dashboard/cat/${cat.id}`} className="block cursor-pointer">
             <div className="flex items-center p-4">
               <img
                 src={cat.avatarUrl || ''}
@@ -50,14 +61,14 @@ const CatCard: React.FC<CatCardProps> = ({ cat }) => {
               <div>
                 <h3 className="text-xl font-bold text-brand-text-primary">{cat.name}</h3>
                 <p className="text-sm text-brand-text-secondary">
-                  В архиве с: {format(new Date(cat.createdAt), 'd MMM yyyy', { locale: ru })} г.
+                  В архиве с: {format(new Date(cat.createdAt), 'd MMM yy', { locale: ru })} г.
                 </p>
               </div>
             </div>
         </Link>
         <button
           onClick={handleInfoClick}
-          className="absolute top-2 right-2 p-2 bg-white/70 backdrop-blur-sm rounded-full text-brand-text-secondary hover:text-brand-primary opacity-0 sm:opacity-100 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          className="absolute top-2 right-2 p-2 bg-white/70 backdrop-blur-sm rounded-full text-brand-text-secondary hover:text-brand-primary opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
           title="Информация о записи"
         >
           <Info size={22} />

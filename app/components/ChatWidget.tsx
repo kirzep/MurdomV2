@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { Message } from '@/types';
+import { Message, User } from '@/types';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import Link from 'next/link';
@@ -36,10 +36,14 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
     if (!isOpen) return;
 
     const fetchHistory = async () => {
-      const res = await fetch(`/api/chat/messages`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data);
+      try {
+        const res = await fetch(`/api/chat/messages`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data);
+        }
+      } catch (error) {
+        console.error("Ошибка при загрузке сообщений:", error);
       }
     };
     fetchHistory();
@@ -61,10 +65,9 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
       id: 'temp-' + Date.now(),
       content: contentToSend,
       senderId: session.user.id,
-      // ИСПРАВЛЕНИЕ: Добавляем запасное значение для имени и аватара
       sender: { 
         id: session.user.id, 
-        name: session.user.name ?? 'Пользователь', // Используем '??', чтобы обработать null и undefined
+        name: session.user.name ?? 'Пользователь',
         image: session.user.image 
       },
       createdAt: new Date().toISOString()
@@ -97,14 +100,22 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
             {messages.map(msg => {
               const isSender = msg.senderId === session?.user.id;
               return (
-                <div key={msg.id} className={`flex flex-col ${isSender ? 'items-end' : 'items-start'}`}>
-                  {!isSender && <p className="text-xs text-brand-text-secondary mb-1 ml-3">{msg.sender.name}</p>}
-                  <div className={`max-w-xs p-3 rounded-2xl ${isSender ? 'bg-brand-primary text-white rounded-br-none' : 'bg-brand-background text-brand-text-primary rounded-bl-none'}`}>
+                <div key={msg.id} className={`flex gap-3 items-end ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {/* ИСПРАВЛЕНИЕ: Ссылка теперь ведет на /view-profile/ID */}
+                  <Link href={`/view-profile/${msg.sender.id}`} className="flex-shrink-0">
+                    <img 
+                      src={msg.sender.image || `https://placehold.co/40x40/e2e8f0/64748b?text=${msg.sender.name.charAt(0)}`} 
+                      alt={msg.sender.name}
+                      className="w-10 h-10 rounded-full object-cover cursor-pointer"
+                    />
+                  </Link>
+                  <div className={`max-w-[75%] p-3 rounded-2xl ${isSender ? 'bg-brand-primary text-white rounded-br-none' : 'bg-brand-background text-brand-text-primary rounded-bl-none'}`}>
+                    {!isSender && <p className="text-xs font-bold text-brand-primary mb-1">{msg.sender.name}</p>}
                     <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    <p className={`text-xs mt-1 text-right ${isSender ? 'text-indigo-200' : 'text-brand-text-secondary'}`}>
+                        {format(new Date(msg.createdAt), 'HH:mm')}
+                    </p>
                   </div>
-                  <p className="text-xs text-brand-text-secondary mt-1 px-1">
-                    {format(new Date(msg.createdAt), 'HH:mm', { locale: ru })}
-                  </p>
                 </div>
               )
             })}

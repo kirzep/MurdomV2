@@ -1,0 +1,70 @@
+// app/components/PatchNotesModal.tsx
+"use client";
+
+import React from 'react';
+import Modal from './ui/Modal';
+import Button from './ui/Button';
+import { Gift, Sparkles } from 'lucide-react';
+
+interface PatchNotesModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    version: string;
+}
+
+// Здесь вы будете хранить историю изменений
+const patchNotes = [
+    {
+        version: "1.1.0",
+        title: "Большое обновление интерфейса и безопасности!",
+        changes: [
+            "Приложение теперь можно установить на телефон (PWA).",
+            "Добавлен анимированный экран приветствия.",
+            "Реализована система ролей и прав доступа.",
+            "Добавлена возможность редактировать свой профиль.",
+            "Полностью переработан дизайн личного профиля кошки.",
+            "Добавлен журнал последних изменений для каждой кошки.",
+            "Изображения теперь автоматически оптимизируются при загрузке.",
+        ]
+    },
+    // В будущем вы сможете добавлять сюда новые записи
+    // {
+    //     version: "1.2.0",
+    //     title: "Новые возможности!",
+    //     changes: ["..."]
+    // }
+];
+
+const PatchNotesModal: React.FC<PatchNotesModalProps> = ({ isOpen, onClose, version }) => {
+    // Находим заметки для текущей версии
+    const currentNotes = patchNotes.find(p => p.version === version);
+
+    if (!currentNotes) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="">
+            <div className="text-center -mt-4">
+                <Sparkles className="mx-auto h-16 w-16 text-amber-400" />
+                <h2 className="mt-4 text-2xl font-bold text-brand-text-primary">Что нового в версии {currentNotes.version}?</h2>
+                <p className="mt-1 text-brand-text-secondary">{currentNotes.title}</p>
+            </div>
+            
+            <ul className="mt-6 space-y-2 text-left">
+                {currentNotes.changes.map((change, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                        <Gift size={18} className="text-brand-primary mt-1 flex-shrink-0" />
+                        <span className="text-brand-text-primary">{change}</span>
+                    </li>
+                ))}
+            </ul>
+
+            <div className="mt-8">
+                <Button onClick={onClose} className="w-full">
+                    Понятно, спасибо!
+                </Button>
+            </div>
+        </Modal>
+    );
+};
+
+export default PatchNotesModal;

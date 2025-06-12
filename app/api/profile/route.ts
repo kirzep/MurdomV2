@@ -5,8 +5,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
 
-// PATCH для обновления профиля текущего пользователя
 export async function PATCH(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -24,12 +24,14 @@ export async function PATCH(request: Request) {
             updateData.name = name.trim();
         }
 
-        // Если приложен новый файл аватара, загружаем его
         if (file) {
             const bytes = await file.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-            const fileExtension = path.extname(file.name);
-            const fileName = `avatar-${session.user.id}-${Date.now()}${fileExtension}`;
+            const buffer = await sharp(Buffer.from(bytes))
+                .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 80 })
+                .toBuffer();
+
+            const fileName = `avatar-${session.user.id}-${Date.now()}.webp`;
             const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
             const filePath = path.join(uploadDir, fileName);
             const publicPath = `/uploads/avatars/${fileName}`;

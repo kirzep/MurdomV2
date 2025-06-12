@@ -12,16 +12,14 @@ import Spinner from '../components/ui/Spinner';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { status } = useSession(); // Получаем статус сессии
+  const { status } = useSession();
 
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // ИСПРАВЛЕНИЕ: Добавляем useEffect для перенаправления
   useEffect(() => {
-    // Если пользователь уже аутентифицирован, перенаправляем его в дашборд
     if (status === 'authenticated') {
       router.push('/dashboard');
     }
@@ -44,7 +42,7 @@ export default function LoginPage() {
         setError('Неверный email или пароль. Попробуйте снова.');
         setIsLoading(false);
       } else {
-        // NextAuth автоматически обновит статус сессии, и useEffect выше выполнит перенаправление
+        // Успешный вход приведет к изменению статуса и редиректу из useEffect
       }
     } catch (error) {
       console.error(error);
@@ -53,7 +51,6 @@ export default function LoginPage() {
     }
   };
 
-  // Пока идет проверка статуса аутентификации, показываем спиннер
   if (status === 'loading' || status === 'authenticated') {
     return (
         <div className="h-screen w-full flex items-center justify-center">
@@ -62,7 +59,6 @@ export default function LoginPage() {
     );
   }
 
-  // Если пользователь не аутентифицирован, показываем форму входа
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-main from-indigo-50 via-purple-50 to-pink-50">
       <motion.div

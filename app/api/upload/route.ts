@@ -4,6 +4,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import sharp from 'sharp';
 
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
@@ -20,30 +21,44 @@ export async function POST(request: Request) {
         }
 
         const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+        const originalBuffer = Buffer.from(bytes);
 
-        // Создаем уникальное имя файла, чтобы избежать конфликтов
-        const fileExtension = path.extname(file.name);
-        const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+        let finalBuffer: Buffer;
+        let finalFileName: string;
+        let finalFileType: string;
+
+        // Явно разделяем логику для изображений и других файлов
+        if (file.type.startsWith('image/')) {
+            // Обрабатываем изображение
+            finalBuffer = await sharp(originalBuffer)
+                .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 80 })
+                .toBuffer();
+            finalFileName = `${uniqueName}.webp`;
+            finalFileType = 'image/webp';
+        } else {
+            // Сохраняем другие файлы как есть
+            finalBuffer = originalBuffer;
+            const fileExtension = path.extname(file.name);
+            finalFileName = `${uniqueName}${fileExtension}`;
+            finalFileType = file.type;
+        }
         
-        // Путь для сохранения файла
         const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        const filePath = path.join(uploadDir, fileName);
-        const publicPath = `/uploads/${fileName}`; // Путь, который будет использоваться на клиенте
+        const filePath = path.join(uploadDir, finalFileName);
+        const publicPath = `/uploads/${finalFileName}`;
 
-        // Проверяем, существует ли папка, и создаем ее, если нет
         await mkdir(uploadDir, { recursive: true });
+        await writeFile(filePath, finalBuffer);
 
-        // Записываем файл на диск
-        await writeFile(filePath, buffer);
-
-        console.log(`File uploaded to: ${filePath}`);
+        console.log(`File processed and uploaded to: ${filePath}`);
 
         return NextResponse.json({ 
             success: true, 
             fileName: file.name,
-            filePath: publicPath, // Возвращаем публичный путь
-            fileType: file.type
+            filePath: publicPath,
+            fileType: finalFileType
         });
 
     } catch (error) {
