@@ -14,8 +14,9 @@ export default function LoginPage() {
   const router = useRouter();
   const { status } = useSession();
 
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('password123');
+  // ИСПРАВЛЕНИЕ: Убираем тестовые данные, поля теперь пустые по умолчанию
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,8 +42,6 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Неверный email или пароль. Попробуйте снова.');
         setIsLoading(false);
-      } else {
-        // Успешный вход приведет к изменению статуса и редиректу из useEffect
       }
     } catch (error) {
       console.error(error);
