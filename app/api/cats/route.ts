@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     try {
         const allCats = await prisma.cat.findMany({
             orderBy: { createdAt: 'desc' },
-            include: { creator: true } // Включаем информацию о создателе
+            include: { creator: true }
         });
 
         if (!searchQuery) {
@@ -36,11 +36,13 @@ export async function GET(request: Request) {
     }
 }
 
-// POST-запрос для добавления новой кошки (только для персонала)
+// POST-запрос для добавления новой кошки
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
-    // Проверка роли
-    if (!session || session.user.role === Role.VOLUNTEER) {
+    
+    // ИСПРАВЛЕНИЕ: Явная проверка разрешенных ролей
+    const allowedRoles = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
+    if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -58,10 +60,10 @@ export async function POST(request: Request) {
                 avatarUrl: avatarUrl || generateAvatar(name),
                 arrivalDate: arrivalDate,
                 birthYear: birthYear,
-                creatorId: session.user.id, // Записываем ID создателя
+                creatorId: session.user.id,
             },
             include: {
-                creator: true, // Включаем создателя в ответ
+                creator: true,
             }
         });
 

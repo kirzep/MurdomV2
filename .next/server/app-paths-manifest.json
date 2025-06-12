@@ -1,12 +1,8 @@
 {
-  "/not-found": "app/not-found.js",
-  "/login/page": "app/login/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/profile/page": "app/profile/page.js",
+  "/api/chat/messages/route": "app/api/chat/messages/route.js",
   "/view-profile/[id]/page": "app/view-profile/[id]/page.js",
-  "/dashboard/cat/[id]/page": "app/dashboard/cat/[id]/page.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/api/get-user-profile/route": "app/api/get-user-profile/route.js",
   "/api/cats/route": "app/api/cats/route.js",
-  "/api/cats/[id]/route": "app/api/cats/[id]/route.js",
-  "/api/cats/[id]/audit/route": "app/api/cats/[id]/audit/route.js"
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js"
 }

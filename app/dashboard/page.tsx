@@ -14,7 +14,7 @@ import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import SidePanel from '../components/SidePanel';
-import ChatWidget from '../components/ChatWidget'; // Импортируем чат
+import ChatWidget from '../components/ChatWidget';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -26,9 +26,13 @@ export default function DashboardPage() {
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false); // Состояние для чата
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
-  const canEdit = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON;
+  // ИСПРАВЛЕНИЕ: Добавляем роль DEVELOPER в проверку прав
+  const canEdit = 
+    session?.user.role === Role.MEDICAL_STAFF || 
+    session?.user.role === Role.TRUSTED_PERSON ||
+    session?.user.role === Role.DEVELOPER;
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login');

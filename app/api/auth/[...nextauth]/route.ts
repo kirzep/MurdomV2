@@ -4,6 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import prisma from '@/lib/prisma';
 import { Role } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 // Расширяем стандартные типы NextAuth, чтобы включить наши кастомные поля
 declare module 'next-auth' {
@@ -13,7 +14,7 @@ declare module 'next-auth' {
       name: string;
       email: string;
       role: Role;
-      image?: string | null; // Добавляем аватар в сессию
+      image?: string | null;
     };
   }
   interface User extends NextAuthUser {
@@ -27,7 +28,7 @@ declare module 'next-auth/jwt' {
     role: Role;
     name: string;
     email: string;
-    picture?: string | null; // Используем 'picture' для аватара в токене
+    picture?: string | null;
   }
 }
 
@@ -49,7 +50,16 @@ export const authOptions: AuthOptions = {
                     where: { email: credentials.email },
                 });
 
-                if (user && user.password === credentials.password) {
+                if (!user || !user.password) {
+                    return null;
+                }
+
+                const isPasswordValid = await bcrypt.compare(
+                    credentials.password,
+                    user.password
+                );
+
+                if (isPasswordValid) {
                     return { 
                         id: user.id, 
                         name: user.name, 
@@ -71,9 +81,7 @@ export const authOptions: AuthOptions = {
         signIn: '/login',
     },
     callbacks: {
-        // Вызывается при создании JWT
         async jwt({ token, user, trigger, session }) {
-            // При первом входе
             if (user) {
                 token.id = user.id;
                 token.role = user.role;
@@ -81,27 +89,22 @@ export const authOptions: AuthOptions = {
                 token.email = user.email || '';
                 token.picture = user.image;
             }
-
-            // ИСПРАВЛЕНИЕ: Когда мы вызываем update(), этот блок срабатывает
             if (trigger === "update") {
-                // Перезагружаем пользователя из базы данных, чтобы получить свежие данные
                 const dbUser = await prisma.user.findUnique({ where: { id: token.id } });
                 if (dbUser) {
                     token.name = dbUser.name;
                     token.picture = dbUser.image;
                 }
             }
-
             return token;
         },
-        // Вызывается при создании сессии
         async session({ session, token }) {
             if (session.user) {
                 session.user.id = token.id;
                 session.user.role = token.role;
                 session.user.name = token.name;
                 session.user.email = token.email;
-                session.user.image = token.picture; // Передаем аватар из токена в сессию
+                session.user.image = token.picture;
             }
             return session;
         },
