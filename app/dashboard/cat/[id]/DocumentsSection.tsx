@@ -3,7 +3,7 @@
 
 import { Cat, Document as DocType } from "@/types";
 import Button from "@/app/components/ui/Button";
-import { Plus, FileText, ScanLine } from 'lucide-react';
+import { Plus, FileText, ScanLine, Eye, Download, Trash2 } from 'lucide-react';
 
 interface DocumentsSectionProps {
     cat: Cat;
@@ -11,9 +11,10 @@ interface DocumentsSectionProps {
     onAddClick: () => void;
     onScanClick: () => void;
     onDocumentClick: (doc: DocType) => void;
+    onDeleteClick: (docId: string) => void; // ИСПРАВЛЕНИЕ: Добавлен недостающий проп
 }
 
-const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onScanClick, onDocumentClick }) => {
+const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onScanClick, onDocumentClick, onDeleteClick }) => {
     const documents = cat.documents || [];
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
@@ -23,7 +24,6 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
                 <h3 className="text-xl font-semibold text-brand-text-primary">Документы</h3>
                 {canEdit && (
                   <div className="flex items-center gap-2">
-                    {/* ИСПРАВЛЕНИЕ: Кнопки теперь адаптивные */}
                     <Button onClick={onScanClick} variant="secondary" className="p-2 sm:px-4 sm:w-auto w-11 h-11">
                         <ScanLine size={20} className="sm:mr-2"/>
                         <span className="hidden sm:inline">Сканировать</span>
@@ -38,22 +38,34 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
             {documents.length > 0 ? (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
                     {documents.map(doc => (
-                        <button
-                            key={doc.id}
-                            onClick={() => onDocumentClick(doc)}
-                            className="aspect-square bg-brand-background rounded-lg overflow-hidden group relative focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                            title={doc.fileName}
-                        >
-                            {doc.fileType.startsWith('image/') ? (
-                                <img src={`${appUrl}${doc.filePath}`} alt={doc.fileName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
-                            ) : (
-                                <div className="w-full h-full flex flex-col items-center justify-center p-2 text-brand-text-secondary">
-                                    <FileText size={40} />
-                                    <span className="text-xs mt-2 text-center truncate w-full">{doc.fileName}</span>
-                                </div>
+                        <div key={doc.id} className="aspect-square bg-brand-background rounded-lg group relative">
+                            <button
+                                onClick={() => onDocumentClick(doc)}
+                                className="w-full h-full block focus:outline-none focus:ring-2 focus:ring-brand-primary rounded-lg"
+                                title={doc.fileName}
+                            >
+                                {doc.fileType.startsWith('image/') ? (
+                                    <img src={`${appUrl}${doc.filePath}`} alt={doc.fileName} className="w-full h-full object-cover rounded-lg" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-brand-text-secondary">
+                                        <FileText size={40} />
+                                        <span className="text-xs mt-2 text-center truncate w-full">{doc.fileName}</span>
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"></div>
+                            </button>
+                            {/* Показываем кнопки только для пользователей с правами */}
+                            {canEdit && (
+                               <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+                                    <a href={`${appUrl}${doc.filePath}`} download={doc.fileName} className="p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70">
+                                        <Download size={16}/>
+                                    </a>
+                                    <button onClick={() => onDeleteClick(doc.id)} className="p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70">
+                                        <Trash2 size={16}/>
+                                    </button>
+                               </div>
                             )}
-                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        </button>
+                        </div>
                     ))}
                 </div>
             ) : (

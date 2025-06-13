@@ -1,7 +1,7 @@
 // app/dashboard/cat/[id]/page.tsx
 "use client";
 
-import { useEffect, useState, FormEvent, useRef } from "react";
+import { useEffect, useState, FormEvent, ChangeEvent, useRef } from "react";
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import { Cat, Role, Document as DocType, TreatmentType, AuditLog as AuditLogType } from "@/types";
@@ -42,7 +42,7 @@ export default function CatProfilePage() {
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     
     const canEdit = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON || session?.user.role === Role.DEVELOPER;
-
+    
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
     const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
@@ -73,7 +73,7 @@ export default function CatProfilePage() {
             setIsLoading(false);
         }
     };
-
+    
     useEffect(() => {
         if (status === 'authenticated') {
             setIsLoading(true);
@@ -81,12 +81,16 @@ export default function CatProfilePage() {
         }
     }, [id, status]);
 
-    useEffect(() => {
-        if (docForm.file) {
-            setDocForm(prev => ({ ...prev, customFileName: prev.file!.name.substring(0, prev.file!.name.lastIndexOf('.')) || prev.file!.name }));
+    const handleDocFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const selectedFile = e.target.files[0];
+            setDocForm({
+                file: selectedFile,
+                customFileName: selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || selectedFile.name
+            });
         }
-    }, [docForm.file]);
-
+    };
+    
     const handleNotesUpdate = async (data: Partial<Cat>) => {
         if (!id) return;
         try {
@@ -114,7 +118,7 @@ export default function CatProfilePage() {
             }
         }
     };
-
+    
     const handleDeleteTreatment = async (treatmentId: string) => {
         if (confirm('Вы уверены, что хотите удалить эту запись?')) {
             await fetch(`/api/cats/${id}/treatments?treatmentId=${treatmentId}`, { method: 'DELETE' });
@@ -125,15 +129,20 @@ export default function CatProfilePage() {
     const handleAddTreatment = async (e: FormEvent) => {
         e.preventDefault();
         setIsFormLoading(true);
-        await fetch(`/api/cats/${id}/treatments`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(treatmentForm),
-        });
-        setIsFormLoading(false);
-        setIsAddTreatmentModalOpen(false);
-        await fetchCatDataAndLogs();
+        try {
+            await fetch(`/api/cats/${id}/treatments`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(treatmentForm),
+            });
+            setIsAddTreatmentModalOpen(false);
+            await fetchCatDataAndLogs();
+        } catch (error) {
+            console.error("Error adding treatment:", error);
+        } finally {
+            setIsFormLoading(false);
+        }
     };
-
+    
     const handleDeleteDocument = async (docId: string) => {
         if (confirm('Вы уверены, что хотите удалить этот документ?')) {
             await fetch(`/api/cats/${id}/documents?documentId=${docId}`, { method: 'DELETE' });
@@ -223,7 +232,6 @@ export default function CatProfilePage() {
                 onDelete={() => viewingDoc && handleDeleteDocument(viewingDoc.id)}
             />
             <AuditLogModal isOpen={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} logs={auditLogs} catCreator={cat?.creator} catCreatedAt={cat?.createdAt} />
-            
             {canEdit && cat && (
                 <EditCatModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onCatUpdated={fetchCatDataAndLogs} cat={cat} />
             )}
@@ -242,7 +250,7 @@ export default function CatProfilePage() {
             {canEdit && (
                 <Modal isOpen={isAddDocModalOpen} onClose={() => setIsAddDocModalOpen(false)} title="Загрузить документ">
                      <form onSubmit={handleAddDocument} className="space-y-4">
-                        <input type="file" onChange={(e) => setDocForm({...docForm, file: e.target.files ? e.target.files[0] : null})} className="w-full text-sm text-brand-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-primary-light file:text-brand-primary hover:file:bg-brand-primary-light/80 cursor-pointer"/>
+                        <input type="file" onChange={handleDocFileChange} className="w-full text-sm text-brand-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-primary-light file:text-brand-primary hover:file:bg-brand-primary-light/80 cursor-pointer"/>
                         {docForm.file && (
                             <Input value={docForm.customFileName} onChange={e => setDocForm({...docForm, customFileName: e.target.value})} placeholder="Название документа*" required />
                         )}
@@ -275,11 +283,12 @@ export default function CatProfilePage() {
                             onAddClick={() => { setDocForm({file: null, customFileName: ''}); setIsAddDocModalOpen(true); }} 
                             onScanClick={() => setIsScanModalOpen(true)}
                             onDocumentClick={setViewingDoc}
+                            onDeleteClick={handleDeleteDocument}
                         />
                     </div>
                 </main>
             </div>
-
+            
             <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
                 <CatReportTemplate ref={reportRef} cat={cat} />
             </div>
