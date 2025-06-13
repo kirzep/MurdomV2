@@ -28,15 +28,23 @@ export async function POST(request: Request) {
         let finalFileName: string;
         let finalFileType: string;
 
-        if (file.type.startsWith('image/')) {
-            // ИСПРАВЛЕНИЕ: Конвертируем изображение в JPEG вместо WebP
-            finalBuffer = await sharp(originalBuffer)
-                .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-                .jpeg({ quality: 85 }) // Устанавливаем формат и качество
-                .toBuffer();
-            finalFileName = `${uniqueName}.jpeg`;
-            finalFileType = 'image/jpeg';
-        } else {
+        // ИСПРАВЛЕНИЕ: Добавляем блок try...catch для обработки неизвестных форматов
+        try {
+            if (file.type.startsWith('image/') && file.type !== 'image/heic' && file.type !== 'image/heif') {
+                // Обрабатываем только известные и поддерживаемые форматы
+                finalBuffer = await sharp(originalBuffer)
+                    .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+                    .jpeg({ quality: 85 })
+                    .toBuffer();
+                finalFileName = `${uniqueName}.jpeg`;
+                finalFileType = 'image/jpeg';
+            } else {
+                // Если формат неизвестен (например, HEIC), сохраняем как есть
+                throw new Error("Unsupported format for optimization, saving original.");
+            }
+        } catch (error) {
+            // Если sharp не смог обработать файл, сохраняем оригинал
+            console.log("Sharp processing failed, saving original file:", error);
             finalBuffer = originalBuffer;
             const fileExtension = path.extname(file.name);
             finalFileName = `${uniqueName}${fileExtension}`;
@@ -49,8 +57,6 @@ export async function POST(request: Request) {
 
         await mkdir(uploadDir, { recursive: true });
         await writeFile(filePath, finalBuffer);
-
-        console.log(`File processed and uploaded to: ${filePath}`);
 
         return NextResponse.json({ 
             success: true, 
