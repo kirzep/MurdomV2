@@ -27,8 +27,11 @@ export async function POST(request: Request) {
             },
         });
         
-        // Формируем полную ссылку для отправки
+        // ИСПРАВЛЕНИЕ: Используем переменную окружения для создания правильной ссылки
         const appUrl = process.env.NEXTAUTH_URL;
+        if (!appUrl) {
+            throw new Error("NEXTAUTH_URL is not defined in environment variables.");
+        }
         const inviteLink = `${appUrl}/register/${invitation.token}`;
 
         return NextResponse.json({ inviteLink });
