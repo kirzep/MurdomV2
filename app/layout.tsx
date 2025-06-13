@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   },
   // ИСПРАВЛЕНИЕ: Добавляем иконку
   icons: {
-    icon: '/favicon.ico', // Укажите здесь путь к вашей иконке в папке public
+    icon: '/favicon.png', // Укажите здесь путь к вашей иконке в папке public
   },
 }
 
