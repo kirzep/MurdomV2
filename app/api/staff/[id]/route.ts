@@ -5,7 +5,6 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { Role } from '@prisma/client';
 
-// Определяем иерархию ролей (чем меньше число, тем выше ранг)
 const roleHierarchy: Record<Role, number> = {
     DEVELOPER: 0,
     MEDICAL_STAFF: 1,
@@ -29,7 +28,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
             return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
         }
         
-        // Нельзя изменять свою собственную роль
         if (session.user.id === targetUserId) {
              return NextResponse.json({ error: "You cannot change your own role." }, { status: 403 });
         }
@@ -41,7 +39,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
         
-        // Проверяем, имеет ли текущий пользователь право изменять роль целевого пользователя
         if (currentUserRank >= roleHierarchy[targetUser.role]) {
             return NextResponse.json({ error: "Insufficient permissions." }, { status: 403 });
         }
@@ -62,13 +59,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 // DELETE для удаления пользователя
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const allowedRoles: Role[] = [Role.DEVELOPER, Role.MEDICAL_STAFF, Role.TRUSTED_PERSON];
+    if (!session || !allowedRoles.includes(session.user.role)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const targetUserId = params.id;
 
-    // Нельзя удалять себя
     if (session.user.id === targetUserId) {
         return NextResponse.json({ error: "You cannot delete yourself." }, { status: 403 });
     }
@@ -80,15 +77,26 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Проверяем иерархию для удаления
     if (currentUserRank >= roleHierarchy[targetUser.role]) {
         return NextResponse.json({ error: "Insufficient permissions to delete this user." }, { status: 403 });
     }
     
-    // Здесь можно добавить логику переназначения созданных кошек, если это необходимо
-    // await prisma.cat.updateMany({ where: { creatorId: targetUserId }, data: { creatorId: null } });
-
-    await prisma.user.delete({ where: { id: targetUserId } });
-
-    return NextResponse.json({ message: 'User deleted successfully' });
+    try {
+        // ИСПРАВЛЕНИЕ: Перед удалением пользователя, мы обрабатываем все его связи
+        await prisma.$transaction([
+            // Открепляем созданных кошек (или можно их удалять, если нужно)
+            prisma.cat.updateMany({ where: { creatorId: targetUserId }, data: { creatorId: null } }),
+            // Удаляем все отправленные им сообщения
+            prisma.message.deleteMany({ where: { senderId: targetUserId } }),
+            // Удаляем все его записи в логах
+            prisma.auditLog.deleteMany({ where: { userId: targetUserId } }),
+            // И только потом удаляем самого пользователя
+            prisma.user.delete({ where: { id: targetUserId } }),
+        ]);
+        
+        return NextResponse.json({ message: 'User deleted successfully' });
+    } catch (error) {
+         console.error("Failed to delete user and their records:", error);
+        return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    }
 }
