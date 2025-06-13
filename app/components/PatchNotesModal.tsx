@@ -25,6 +25,8 @@ const patchNotes = [
             "Полностью переработан дизайн личного профиля кошки.",
             "Добавлен журнал последних изменений для каждой кошки.",
             "Изображения теперь автоматически оптимизируются при загрузке.",
+            "Добавлена функция сканирования документов с камеры.",
+            "Реализован экспорт профиля кошки в красивый PDF-документ.",
         ]
     },
     // В будущем вы сможете добавлять сюда новые записи
@@ -36,7 +38,6 @@ const patchNotes = [
 ];
 
 const PatchNotesModal: React.FC<PatchNotesModalProps> = ({ isOpen, onClose, version }) => {
-    // Находим заметки для текущей версии
     const currentNotes = patchNotes.find(p => p.version === version);
 
     if (!currentNotes) return null;
@@ -49,7 +50,10 @@ const PatchNotesModal: React.FC<PatchNotesModalProps> = ({ isOpen, onClose, vers
                 <p className="mt-1 text-brand-text-secondary">{currentNotes.title}</p>
             </div>
             
-            <ul className="mt-6 space-y-2 text-left">
+            {/* ИСПРАВЛЕНИЕ: Добавляем overflow-y-auto и max-h-[...], 
+              чтобы список становился прокручиваемым, если не помещается на экране.
+            */}
+            <ul className="mt-6 space-y-2 text-left overflow-y-auto max-h-[50vh] pr-2">
                 {currentNotes.changes.map((change, index) => (
                     <li key={index} className="flex items-start gap-3">
                         <Gift size={18} className="text-brand-primary mt-1 flex-shrink-0" />

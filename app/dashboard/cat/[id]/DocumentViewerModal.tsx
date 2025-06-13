@@ -24,12 +24,12 @@ const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({ doc, onClose,
         <>
             <a href={fileSrc} download={doc.fileName} className="block">
                 <Button variant="secondary" className="p-2 h-11 w-11 rounded-full">
-                    <Download size={24} />
+                    <Download size={29} />
                 </Button>
             </a>
             {canEdit && (
                 <Button onClick={onDelete} variant="danger" className="p-2 h-11 w-11 rounded-full">
-                    <Trash2 size={24} />
+                    <Trash2 size={28} />
                 </Button>
             )}
              <Button onClick={onClose} variant="secondary" className="p-2 h-11 w-11 rounded-full">

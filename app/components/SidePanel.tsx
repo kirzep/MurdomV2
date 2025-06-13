@@ -2,7 +2,7 @@
 "use client";
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { User, Archive, X } from 'lucide-react';
+import { User, Archive, X, Users } from 'lucide-react';
 import Link from 'next/link';
 
 interface SidePanelProps {
@@ -15,7 +15,6 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Затемняющий фон */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -24,7 +23,6 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose }) => {
             className="fixed inset-0 bg-black/50 z-50"
             onClick={onClose}
           />
-          {/* Сама панель */}
           <motion.div
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
@@ -40,13 +38,17 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose }) => {
             </div>
             
             <nav className="flex flex-col gap-4">
+              <Link href="/dashboard" onClick={onClose} className="flex items-center gap-4 p-3 rounded-lg hover:bg-brand-primary-light transition-colors text-lg font-medium text-brand-text-primary">
+                <Archive size={24} />
+                Архив
+              </Link>
               <Link href="/profile" onClick={onClose} className="flex items-center gap-4 p-3 rounded-lg hover:bg-brand-primary-light transition-colors text-lg font-medium text-brand-text-primary">
                 <User size={24} />
                 Мой профиль
               </Link>
-              <Link href="/dashboard" onClick={onClose} className="flex items-center gap-4 p-3 rounded-lg hover:bg-brand-primary-light transition-colors text-lg font-medium text-brand-text-primary">
-                <Archive size={24} />
-                Архив
+              <Link href="/staff" onClick={onClose} className="flex items-center gap-4 p-3 rounded-lg hover:bg-brand-primary-light transition-colors text-lg font-medium text-brand-text-primary">
+                <Users size={24} />
+                Персонал
               </Link>
             </nav>
           </motion.div>

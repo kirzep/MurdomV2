@@ -14,10 +14,11 @@ interface CatReportTemplateProps {
 const treatmentMeta: Record<TreatmentType, { name: string }> = {
   WORMS: { name: 'Дегельминтизация' },
   FLEAS: { name: 'Обработка от эктопаразитов' },
-  EAR_MITES: { name: 'Акарицидная обработка' },
+  EAR_MITES: { name: 'Обработка от ушных клещей' },
   VACCINATION: { name: 'Вакцинация' },
 };
 
+// Простой SVG-логотип для "МурДом"
 const MurDomLogo = () => (
     <div className="flex items-center gap-2 text-gray-500">
         <CatIcon size={24} />
@@ -25,16 +26,17 @@ const MurDomLogo = () => (
     </div>
 );
 
+
+// Этот компонент отвечает только за ПЕРВУЮ страницу отчета
 export const CatReportTemplate = forwardRef<HTMLDivElement, CatReportTemplateProps>(({ cat }, ref) => {
   const age = cat.birthYear ? `${new Date().getFullYear() - cat.birthYear} лет` : 'Не указан';
-  
-  // Формируем абсолютный URL для аватара
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const avatarSrc = cat.avatarUrl 
     ? `${appUrl}${cat.avatarUrl}` 
     : `https://placehold.co/112x112/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
   
   return (
+    // Этот div будет "сфотографирован". Стили подобраны для формата A4.
     <div ref={ref} className="bg-white text-gray-800 p-10 font-sans" style={{ width: '210mm', minHeight: '297mm' }}>
       <header className="flex items-start justify-between pb-4 border-b-2 border-gray-200">
         <div className="flex items-center gap-6">

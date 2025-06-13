@@ -3,26 +3,36 @@
 
 import { Cat, Document as DocType } from "@/types";
 import Button from "@/app/components/ui/Button";
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, ScanLine } from 'lucide-react';
 
 interface DocumentsSectionProps {
     cat: Cat;
     canEdit: boolean;
     onAddClick: () => void;
+    onScanClick: () => void;
     onDocumentClick: (doc: DocType) => void;
 }
 
-const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onDocumentClick }) => {
+const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onScanClick, onDocumentClick }) => {
     const documents = cat.documents || [];
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
     return (
         <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 gap-2">
                 <h3 className="text-xl font-semibold text-brand-text-primary">Документы</h3>
                 {canEdit && (
-                  <Button onClick={onAddClick}>
-                      <Plus size={20} className="mr-2"/> Загрузить
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {/* ИСПРАВЛЕНИЕ: Кнопки теперь адаптивные */}
+                    <Button onClick={onScanClick} variant="secondary" className="p-2 sm:px-4 sm:w-auto w-11 h-11">
+                        <ScanLine size={20} className="sm:mr-2"/>
+                        <span className="hidden sm:inline">Сканировать</span>
+                    </Button>
+                    <Button onClick={onAddClick} className="p-2 sm:px-4 sm:w-auto w-11 h-11">
+                        <Plus size={20} className="sm:mr-2"/>
+                        <span className="hidden sm:inline">Загрузить</span>
+                    </Button>
+                  </div>
                 )}
             </div>
             {documents.length > 0 ? (
@@ -35,7 +45,7 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
                             title={doc.fileName}
                         >
                             {doc.fileType.startsWith('image/') ? (
-                                <img src={doc.filePath} alt={doc.fileName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                                <img src={`${appUrl}${doc.filePath}`} alt={doc.fileName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                             ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center p-2 text-brand-text-secondary">
                                     <FileText size={40} />

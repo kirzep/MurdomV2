@@ -7,17 +7,22 @@ import { useEffect } from "react";
 import Spinner from "./components/ui/Spinner";
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return; // Ничего не делаем, пока сессия загружается
+    // Ничего не делаем, пока сессия загружается
+    if (status === "loading") return;
+
+    // Если пользователь уже вошел, отправляем его в дашборд
+    // (Middleware сам разберется, куда его направить дальше)
     if (status === "authenticated") {
-      router.push("/dashboard"); // Пользователь вошел, перенаправляем на дашборд
+      router.push("/dashboard");
     } else {
-      router.push("/login"); // Пользователь не вошел, перенаправляем на логин
+      // Если пользователь не вошел, отправляем на страницу входа
+      router.push("/login"); 
     }
-  }, [session, status, router]);
+  }, [status, router]);
 
   // Показываем спиннер, пока происходит проверка и редирект
   return (

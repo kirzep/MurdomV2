@@ -18,16 +18,16 @@ import DocumentViewerModal from "./DocumentViewerModal";
 import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import AuditLogModal from './AuditLogModal';
+import ScanDocumentModal from "./ScanDocumentModal";
 import { CatReportTemplate } from "./CatReportTemplate";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-
 const treatmentMeta = {
-  [TreatmentType.WORMS]: { name: 'от глистов' },
-  [TreatmentType.FLEAS]: { name: 'от блох' },
-  [TreatmentType.EAR_MITES]: { name: 'от ушных клещей' },
-  [TreatmentType.VACCINATION]: { name: 'вакцинация' },
+  [TreatmentType.WORMS]: { name: 'Дегельминтизация' },
+  [TreatmentType.FLEAS]: { name: 'Обработка от эктопаразитов' },
+  [TreatmentType.EAR_MITES]: { name: 'Акарицидная обработка' },
+  [TreatmentType.VACCINATION]: { name: 'Вакцинация' },
 };
 
 export default function CatProfilePage() {
@@ -38,15 +38,18 @@ export default function CatProfilePage() {
     const [cat, setCat] = useState<Cat | null>(null);
     const [auditLogs, setAuditLogs] = useState<AuditLogType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const reportRef = useRef<HTMLDivElement>(null);
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     
     const canEdit = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON || session?.user.role === Role.DEVELOPER;
+
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
     const [isAddDocModalOpen, setIsAddDocModalOpen] = useState(false);
+    const [isScanModalOpen, setIsScanModalOpen] = useState(false);
     const [viewingDoc, setViewingDoc] = useState<DocType | null>(null);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    
     const [treatmentForm, setTreatmentForm] = useState({ type: TreatmentType.WORMS, date: '', productName: '' });
     const [docForm, setDocForm] = useState({ file: null as File | null, customFileName: '' });
     const [isFormLoading, setIsFormLoading] = useState(false);
@@ -157,58 +160,47 @@ export default function CatProfilePage() {
         await fetchCatDataAndLogs();
     };
 
+    const handleScanComplete = async (scannedFile: File) => {
+        setDocForm({ file: scannedFile, customFileName: `Скан от ${new Date().toLocaleDateString()}` });
+        setIsAddDocModalOpen(true);
+    };
+
     const handleExportReport = async () => {
         if (!reportRef.current || !cat) return;
         setIsGeneratingReport(true);
-        
         try {
-            // Шаг 1: Создание первой страницы с основной информацией
-            const mainPageCanvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true });
-            const mainPageImgData = mainPageCanvas.toDataURL('image/png');
-            
+            const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
-            
-            pdf.addImage(mainPageImgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-            
-            // Шаг 2: Добавление страниц с изображениями
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
             const imageDocs = cat.documents?.filter(doc => doc.fileType.startsWith('image/')) || [];
-
             for (const doc of imageDocs) {
                 pdf.addPage();
-                
+                pdf.setFontSize(16);
+                pdf.setTextColor(100);
+                pdf.text(doc.fileName, 15, 20, { maxWidth: pdfWidth - 30 });
                 const img = new Image();
                 img.crossOrigin = "anonymous";
-                img.src = doc.filePath;
-
+                img.src = `${process.env.NEXT_PUBLIC_APP_URL || ''}${doc.filePath}`;
                 await new Promise(resolve => { img.onload = resolve; });
-                
-                const margin = 10;
-                const pageWidth = pdfWidth - margin * 2;
-                const pageHeight = pdfHeight - margin * 2;
-
+                const margin = 15;
+                const pageContentHeight = pdfHeight - 40;
                 const imgWidth = img.naturalWidth;
                 const imgHeight = img.naturalHeight;
                 const ratio = imgWidth / imgHeight;
-
-                let newWidth = pageWidth;
+                let newWidth = pdfWidth - margin * 2;
                 let newHeight = newWidth / ratio;
-                
-                if (newHeight > pageHeight) {
-                    newHeight = pageHeight;
+                if (newHeight > pageContentHeight) {
+                    newHeight = pageContentHeight;
                     newWidth = newHeight * ratio;
                 }
-
                 const x = (pdfWidth - newWidth) / 2;
-                const y = (pdfHeight - newHeight) / 2;
-                
+                const y = 30;
                 pdf.addImage(img, 'JPEG', x, y, newWidth, newHeight, undefined, 'FAST');
             }
-            
-            // Шаг 3: Сохранение файла
             pdf.save(`Карта - ${cat.name}.pdf`);
-
         } catch (error) {
             console.error("Ошибка при создании PDF:", error);
             alert("Не удалось создать отчет. Попробуйте снова.");
@@ -223,6 +215,7 @@ export default function CatProfilePage() {
 
     return (
         <>
+            <ScanDocumentModal isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} onScanComplete={handleScanComplete} />
             <DocumentViewerModal 
                 doc={viewingDoc} 
                 onClose={() => setViewingDoc(null)} 
@@ -280,6 +273,7 @@ export default function CatProfilePage() {
                             cat={cat} 
                             canEdit={canEdit} 
                             onAddClick={() => { setDocForm({file: null, customFileName: ''}); setIsAddDocModalOpen(true); }} 
+                            onScanClick={() => setIsScanModalOpen(true)}
                             onDocumentClick={setViewingDoc}
                         />
                     </div>
