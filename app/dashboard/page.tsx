@@ -25,7 +25,7 @@ const containerVariants = {
 
 const getRandomDuration = () => Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
 
-const CURRENT_APP_VERSION = '1.1.0';
+const CURRENT_APP_VERSION = '1.1.1';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
