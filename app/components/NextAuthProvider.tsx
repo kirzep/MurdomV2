@@ -8,12 +8,10 @@ interface Props {
   children: React.ReactNode;
 }
 
-// Этот компонент-обертка необходим для использования useSession() в клиентских компонентах
 export default function NextAuthProvider({ children }: Props) {
   return (
-    // ИСПРАВЛЕНИЕ: Добавляем refetchInterval.
-    // Это будет автоматически обновлять сессию пользователя каждые 60 секунд.
-    // Если роль пользователя изменилась, он получит новые права без перезахода.
+    // refetchInterval={60} заставляет приложение каждые 60 секунд
+    // обращаться к серверу, что запускает наш обновленный jwt-callback
     <SessionProvider refetchInterval={60}>
         {children}
     </SessionProvider>
