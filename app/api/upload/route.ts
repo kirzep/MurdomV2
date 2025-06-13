@@ -28,17 +28,15 @@ export async function POST(request: Request) {
         let finalFileName: string;
         let finalFileType: string;
 
-        // Явно разделяем логику для изображений и других файлов
         if (file.type.startsWith('image/')) {
-            // Обрабатываем изображение
+            // ИСПРАВЛЕНИЕ: Конвертируем изображение в JPEG вместо WebP
             finalBuffer = await sharp(originalBuffer)
                 .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 80 })
+                .jpeg({ quality: 85 }) // Устанавливаем формат и качество
                 .toBuffer();
-            finalFileName = `${uniqueName}.webp`;
-            finalFileType = 'image/webp';
+            finalFileName = `${uniqueName}.jpeg`;
+            finalFileType = 'image/jpeg';
         } else {
-            // Сохраняем другие файлы как есть
             finalBuffer = originalBuffer;
             const fileExtension = path.extname(file.name);
             finalFileName = `${uniqueName}${fileExtension}`;

@@ -26,12 +26,13 @@ export async function PATCH(request: Request) {
 
         if (file) {
             const bytes = await file.arrayBuffer();
+            // ИСПРАВЛЕНИЕ: Конвертируем аватар в JPEG вместо WebP
             const buffer = await sharp(Buffer.from(bytes))
                 .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 80 })
+                .jpeg({ quality: 85 })
                 .toBuffer();
 
-            const fileName = `avatar-${session.user.id}-${Date.now()}.webp`;
+            const fileName = `avatar-${session.user.id}-${Date.now()}.jpeg`;
             const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
             const filePath = path.join(uploadDir, fileName);
             const publicPath = `/uploads/avatars/${fileName}`;

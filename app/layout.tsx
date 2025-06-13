@@ -4,7 +4,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import NextAuthProvider from './components/NextAuthProvider'
 import PWAInstaller from './components/PWAInstaller'
-import ConnectionStatusBanner from './components/ConnectionStatusBanner' // Импортируем баннер
+import ConnectionStatusBanner from './components/ConnectionStatusBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -16,6 +16,10 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'Архив Кошек',
+  },
+  // ИСПРАВЛЕНИЕ: Добавляем иконку
+  icons: {
+    icon: '/favicon.ico', // Укажите здесь путь к вашей иконке в папке public
   },
 }
 
@@ -31,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
-        <ConnectionStatusBanner /> {/* Добавляем баннер сюда */}
+        <ConnectionStatusBanner />
         <NextAuthProvider>
           {children}
         </NextAuthProvider>
