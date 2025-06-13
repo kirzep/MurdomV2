@@ -25,7 +25,7 @@ const roleHierarchyMap: Record<Role, number> = {
 
 const UserCard = ({ user, currentUser, onRoleChange, onDelete }: { 
     user: User;
-    currentUser: User; // Используем наш строгий тип User
+    currentUser: User;
     onRoleChange: (userId: string, newRole: Role) => void;
     onDelete: (userId: string) => void;
 }) => {
@@ -89,6 +89,7 @@ const UserCard = ({ user, currentUser, onRoleChange, onDelete }: {
 };
 
 
+// --- Основной компонент страницы ---
 export default function StaffPage() {
     const { data: session, status } = useSession();
     const [users, setUsers] = useState<User[]>([]);
@@ -143,7 +144,7 @@ export default function StaffPage() {
             }
         }
     };
-    
+
     const createInvite = async () => {
         setIsCreatingInvite(true);
         setInviteLink('');
@@ -162,10 +163,45 @@ export default function StaffPage() {
         }
     };
     
+    // ИСПРАВЛЕНИЕ: Новая, более надежная функция копирования
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(inviteLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        if (!inviteLink) return;
+
+        // Современный метод, который работает на сайтах с HTTPS
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(inviteLink)
+                .then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                })
+                .catch(err => {
+                    console.error('Современный метод копирования не удался: ', err);
+                    // Если современный метод не сработал, пробуем старый
+                    fallbackCopyToClipboard();
+                });
+        } else {
+            // Старый, универсальный метод для HTTP или старых браузеров
+            fallbackCopyToClipboard();
+        }
+    };
+
+    const fallbackCopyToClipboard = () => {
+        const textArea = document.createElement("textarea");
+        textArea.value = inviteLink;
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Запасной метод копирования не удался: ', err);
+            alert('Не удалось скопировать ссылку. Пожалуйста, сделайте это вручную.');
+        } finally {
+            document.body.removeChild(textArea);
+        }
     };
 
     const groupedUsers = users.reduce((acc, user) => {
@@ -243,7 +279,6 @@ export default function StaffPage() {
                                         <UserCard 
                                             key={user.id} 
                                             user={user} 
-                                            // ИСПРАВЛЕНИЕ: Мы явно приводим тип session.user к нашему интерфейсу User
                                             currentUser={session.user as User} 
                                             onRoleChange={handleRoleChange} 
                                             onDelete={handleDeleteUser}
