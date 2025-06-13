@@ -7,17 +7,12 @@ import { Role, User } from '@prisma/client';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcrypt';
 
-// Расширяем стандартные типы NextAuth, чтобы включить наши кастомные поля
+// Расширяем стандартные типы NextAuth
 declare module 'next-auth' {
-  /**
-   * Добавляем расширение для интерфейса User,
-   * чтобы TypeScript "знал" о наших кастомных полях.
-   */
   interface User {
     role: Role;
     isProfileSetupComplete: boolean;
   }
-
   interface Session {
     user: {
       id: string;
@@ -28,7 +23,6 @@ declare module 'next-auth' {
 }
 
 declare module 'next-auth/jwt' {
-  /** Расширяем токен JWT */
   interface JWT {
     id: string;
     role: Role;
@@ -38,7 +32,6 @@ declare module 'next-auth/jwt' {
 }
 
 export const authOptions: AuthOptions = {
-    // Явно типизируем адаптер для TypeScript
     adapter: PrismaAdapter(prisma) as AuthOptions['adapter'],
     providers: [
         CredentialsProvider({
@@ -49,20 +42,10 @@ export const authOptions: AuthOptions = {
             },
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
-                
-                const user = await prisma.user.findUnique({
-                    where: { email: credentials.email },
-                });
-
+                const user = await prisma.user.findUnique({ where: { email: credentials.email }});
                 if (!user || !user.password) return null;
-
-                const isPasswordValid = await bcrypt.compare(
-                    credentials.password,
-                    user.password
-                );
-
+                const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
                 if (isPasswordValid) return user;
-                
                 return null;
             }
         })
@@ -75,16 +58,26 @@ export const authOptions: AuthOptions = {
         signIn: '/login',
     },
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger }) {
             // При первом входе `user` объект доступен
             if (user) {
-                // ИСПРАВЛЕНИЕ: Используем утверждение типа (as User), чтобы TypeScript
-                // понял, что мы работаем с нашим расширенным типом User, у которого есть role.
                 token.id = user.id;
                 token.role = (user as User).role;
                 token.isProfileSetupComplete = (user as User).isProfileSetupComplete;
                 token.picture = user.image;
             }
+
+            // ИСПРАВЛЕНИЕ: Этот блок будет теперь принудительно обновлять токен
+            // при вызове update() со страницы настройки профиля.
+            if (trigger === "update") {
+                const dbUser = await prisma.user.findUnique({ where: { id: token.id } });
+                if (dbUser) {
+                    token.name = dbUser.name;
+                    token.picture = dbUser.image;
+                    token.isProfileSetupComplete = dbUser.isProfileSetupComplete;
+                }
+            }
+
             return token;
         },
         async session({ session, token }) {
@@ -93,6 +86,7 @@ export const authOptions: AuthOptions = {
                 session.user.id = token.id;
                 session.user.role = token.role;
                 session.user.image = token.picture;
+                session.user.name = token.name;
                 session.user.isProfileSetupComplete = token.isProfileSetupComplete;
             }
             return session;
