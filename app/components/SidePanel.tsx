@@ -4,6 +4,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { User, Archive, X, Users } from 'lucide-react';
 import Link from 'next/link';
+import InstallPWAButton from './InstallPWAButton'; // Импортируем наш новый компонент
 
 interface SidePanelProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose }) => {
               </button>
             </div>
             
-            <nav className="flex flex-col gap-4">
+            <nav className="flex flex-col gap-4 flex-grow">
               <Link href="/dashboard" onClick={onClose} className="flex items-center gap-4 p-3 rounded-lg hover:bg-brand-primary-light transition-colors text-lg font-medium text-brand-text-primary">
                 <Archive size={24} />
                 Архив
@@ -51,6 +52,12 @@ const SidePanel: React.FC<SidePanelProps> = ({ isOpen, onClose }) => {
                 Персонал
               </Link>
             </nav>
+
+            {/* Блок для кнопки установки внизу панели */}
+            <div className="mt-auto">
+                <InstallPWAButton />
+            </div>
+
           </motion.div>
         </>
       )}

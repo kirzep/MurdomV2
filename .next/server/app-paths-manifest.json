@@ -1,10 +1,8 @@
 {
   "/not-found": "app/not-found.js",
+  "/login/page": "app/login/page.js",
   "/api/health/route": "app/api/health/route.js",
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/dashboard/cat/[id]/page": "app/dashboard/cat/[id]/page.js",
-  "/api/cats/[id]/route": "app/api/cats/[id]/route.js",
-  "/api/cats/[id]/audit/route": "app/api/cats/[id]/audit/route.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/api/cats/route": "app/api/cats/route.js",
   "/staff/page": "app/staff/page.js",
