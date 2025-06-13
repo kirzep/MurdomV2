@@ -3,7 +3,7 @@
 
 import { Cat, Document as DocType } from "@/types";
 import Button from "@/app/components/ui/Button";
-import { Plus, FileText, ScanLine, Eye, Download, Trash2 } from 'lucide-react';
+import { Plus, FileText, ScanLine, Trash2 } from 'lucide-react';
 
 interface DocumentsSectionProps {
     cat: Cat;
@@ -11,12 +11,19 @@ interface DocumentsSectionProps {
     onAddClick: () => void;
     onScanClick: () => void;
     onDocumentClick: (doc: DocType) => void;
-    onDeleteClick: (docId: string) => void; // ИСПРАВЛЕНИЕ: Добавлен недостающий проп
+    // Добавляем недостающий проп
+    onDeleteClick: (docId: string) => void;
 }
 
 const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onScanClick, onDocumentClick, onDeleteClick }) => {
     const documents = cat.documents || [];
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+
+    const handleDelete = (e: React.MouseEvent, docId: string) => {
+        // Останавливаем "всплытие" события, чтобы не открылось модальное окно просмотра
+        e.stopPropagation();
+        onDeleteClick(docId);
+    };
 
     return (
         <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md">
@@ -54,16 +61,14 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
                                 )}
                                 <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"></div>
                             </button>
-                            {/* Показываем кнопки только для пользователей с правами */}
                             {canEdit && (
-                               <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
-                                    <a href={`${appUrl}${doc.filePath}`} download={doc.fileName} className="p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70">
-                                        <Download size={16}/>
-                                    </a>
-                                    <button onClick={() => onDeleteClick(doc.id)} className="p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70">
-                                        <Trash2 size={16}/>
-                                    </button>
-                               </div>
+                               <button 
+                                  onClick={(e) => handleDelete(e, doc.id)} 
+                                  className="absolute top-1 right-1 p-1.5 rounded-full bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 scale-90 group-hover:scale-100"
+                                  title="Удалить документ"
+                                >
+                                    <Trash2 size={16}/>
+                               </button>
                             )}
                         </div>
                     ))}

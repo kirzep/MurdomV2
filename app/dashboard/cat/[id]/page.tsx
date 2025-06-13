@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react";
 import { Cat, Role, Document as DocType, TreatmentType, AuditLog as AuditLogType } from "@/types";
 import Spinner from "@/app/components/ui/Spinner";
 import CatProfileHeader from "./CatProfileHeader";
-import { ArrowLeft, FileDown } from "lucide-react";
+import { ArrowLeft, FileDown, FileUp } from "lucide-react";
 import Link from "next/link";
 import NotesSection from "./NotesSection";
 import TreatmentsSection from "./TreatmentsSection";
@@ -23,11 +23,17 @@ import { CatReportTemplate } from "./CatReportTemplate";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-const treatmentMeta = {
+const treatmentMeta: Record<TreatmentType, { name: string }> = {
   [TreatmentType.WORMS]: { name: 'Дегельминтизация' },
   [TreatmentType.FLEAS]: { name: 'Обработка от эктопаразитов' },
   [TreatmentType.EAR_MITES]: { name: 'Акарицидная обработка' },
   [TreatmentType.VACCINATION]: { name: 'Вакцинация' },
+};
+
+type DocUploadState = {
+    file: File;
+    customName: string;
+    id: number;
 };
 
 export default function CatProfilePage() {
@@ -51,7 +57,7 @@ export default function CatProfilePage() {
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     
     const [treatmentForm, setTreatmentForm] = useState({ type: TreatmentType.WORMS, date: '', productName: '' });
-    const [docForm, setDocForm] = useState({ file: null as File | null, customFileName: '' });
+    const [docFilesToUpload, setDocFilesToUpload] = useState<DocUploadState[]>([]);
     const [isFormLoading, setIsFormLoading] = useState(false);
 
     const fetchCatDataAndLogs = async () => {
@@ -73,7 +79,7 @@ export default function CatProfilePage() {
             setIsLoading(false);
         }
     };
-    
+
     useEffect(() => {
         if (status === 'authenticated') {
             setIsLoading(true);
@@ -81,16 +87,24 @@ export default function CatProfilePage() {
         }
     }, [id, status]);
 
-    const handleDocFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const selectedFile = e.target.files[0];
-            setDocForm({
-                file: selectedFile,
-                customFileName: selectedFile.name.substring(0, selectedFile.name.lastIndexOf('.')) || selectedFile.name
-            });
+    const handleDocFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            const newFilesState = files.map((file, index) => ({
+                file,
+                customName: file.name.substring(0, file.name.lastIndexOf('.')) || file.name,
+                id: Date.now() + index
+            }));
+            setDocFilesToUpload(newFilesState);
         }
     };
-    
+
+    const handleSingleDocNameChange = (id: number, newName: string) => {
+        setDocFilesToUpload(currentFiles =>
+            currentFiles.map(f => (f.id === id ? { ...f, customName: newName } : f))
+        );
+    };
+
     const handleNotesUpdate = async (data: Partial<Cat>) => {
         if (!id) return;
         try {
@@ -118,7 +132,7 @@ export default function CatProfilePage() {
             }
         }
     };
-    
+
     const handleDeleteTreatment = async (treatmentId: string) => {
         if (confirm('Вы уверены, что хотите удалить эту запись?')) {
             await fetch(`/api/cats/${id}/treatments?treatmentId=${treatmentId}`, { method: 'DELETE' });
@@ -142,7 +156,7 @@ export default function CatProfilePage() {
             setIsFormLoading(false);
         }
     };
-    
+
     const handleDeleteDocument = async (docId: string) => {
         if (confirm('Вы уверены, что хотите удалить этот документ?')) {
             await fetch(`/api/cats/${id}/documents?documentId=${docId}`, { method: 'DELETE' });
@@ -153,24 +167,38 @@ export default function CatProfilePage() {
 
     const handleAddDocument = async (e: FormEvent) => {
         e.preventDefault();
-        if (!docForm.file || !docForm.customFileName.trim()) return;
+        if (docFilesToUpload.length === 0) return;
         setIsFormLoading(true);
-        const formData = new FormData();
-        formData.append('file', docForm.file);
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) { alert('Ошибка загрузки файла'); setIsFormLoading(false); return; }
-        await fetch(`/api/cats/${id}/documents`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...uploadData, fileName: docForm.customFileName.trim() }),
+        const uploadPromises = docFilesToUpload.map(async (docState) => {
+            const formData = new FormData();
+            formData.append('file', docState.file);
+            const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+            const uploadData = await uploadRes.json();
+            if (!uploadRes.ok) throw new Error(`Ошибка загрузки файла: ${docState.file.name}`);
+            await fetch(`/api/cats/${id}/documents`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...uploadData, fileName: docState.customName.trim() }),
+            });
         });
-        setIsFormLoading(false);
-        setIsAddDocModalOpen(false);
-        await fetchCatDataAndLogs();
+        try {
+            await Promise.all(uploadPromises);
+        } catch (error) {
+            console.error(error);
+            alert((error as Error).message);
+        } finally {
+            setIsFormLoading(false);
+            setIsAddDocModalOpen(false);
+            setDocFilesToUpload([]);
+            await fetchCatDataAndLogs();
+        }
     };
 
-    const handleScanComplete = async (scannedFile: File) => {
-        setDocForm({ file: scannedFile, customFileName: `Скан от ${new Date().toLocaleDateString()}` });
+    const handleScanComplete = (scannedFile: File) => {
+        setDocFilesToUpload([{
+            file: scannedFile,
+            customName: `Скан от ${new Date().toLocaleDateString()}`,
+            id: Date.now()
+        }]);
         setIsAddDocModalOpen(true);
     };
 
@@ -232,6 +260,7 @@ export default function CatProfilePage() {
                 onDelete={() => viewingDoc && handleDeleteDocument(viewingDoc.id)}
             />
             <AuditLogModal isOpen={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} logs={auditLogs} catCreator={cat?.creator} catCreatedAt={cat?.createdAt} />
+            
             {canEdit && cat && (
                 <EditCatModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onCatUpdated={fetchCatDataAndLogs} cat={cat} />
             )}
@@ -248,13 +277,33 @@ export default function CatProfilePage() {
                 </Modal>
             )}
             {canEdit && (
-                <Modal isOpen={isAddDocModalOpen} onClose={() => setIsAddDocModalOpen(false)} title="Загрузить документ">
+                <Modal isOpen={isAddDocModalOpen} onClose={() => {setDocFilesToUpload([]); setIsAddDocModalOpen(false);}} title="Загрузка документов">
                      <form onSubmit={handleAddDocument} className="space-y-4">
-                        <input type="file" onChange={handleDocFileChange} className="w-full text-sm text-brand-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-primary-light file:text-brand-primary hover:file:bg-brand-primary-light/80 cursor-pointer"/>
-                        {docForm.file && (
-                            <Input value={docForm.customFileName} onChange={e => setDocForm({...docForm, customFileName: e.target.value})} placeholder="Название документа*" required />
+                        <label htmlFor="file-upload" className="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-brand-border rounded-lg cursor-pointer hover:bg-brand-background">
+                            <FileUp className="w-10 h-10 text-brand-text-secondary mb-2" />
+                            <span className="font-semibold text-brand-primary">Выберите файлы</span>
+                            <span className="text-sm text-brand-text-secondary">или перетащите их сюда</span>
+                        </label>
+                        <input id="file-upload" type="file" multiple onChange={handleDocFilesChange} className="hidden"/>
+                        
+                        {docFilesToUpload.length > 0 && (
+                            <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                {docFilesToUpload.map((docState) => (
+                                    <div key={docState.id}>
+                                        <label className="text-xs text-brand-text-secondary block mb-1">{docState.file.name}</label>
+                                        <Input 
+                                            value={docState.customName} 
+                                            onChange={e => handleSingleDocNameChange(docState.id, e.target.value)} 
+                                            placeholder="Название документа*" 
+                                            required 
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                        <Button type="submit" isLoading={isFormLoading} disabled={!docForm.file || !docForm.customFileName.trim()} className="w-full">Загрузить</Button>
+                        <Button type="submit" isLoading={isFormLoading} disabled={docFilesToUpload.length === 0} className="w-full">
+                            Загрузить ({docFilesToUpload.length})
+                        </Button>
                     </form>
                 </Modal>
             )}
@@ -280,7 +329,7 @@ export default function CatProfilePage() {
                         <DocumentsSection 
                             cat={cat} 
                             canEdit={canEdit} 
-                            onAddClick={() => { setDocForm({file: null, customFileName: ''}); setIsAddDocModalOpen(true); }} 
+                            onAddClick={() => { setDocFilesToUpload([]); setIsAddDocModalOpen(true); }} 
                             onScanClick={() => setIsScanModalOpen(true)}
                             onDocumentClick={setViewingDoc}
                             onDeleteClick={handleDeleteDocument}
