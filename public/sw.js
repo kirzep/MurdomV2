@@ -1,5 +1,7 @@
-const CACHE_NAME = 'cat-archive-shell-v2'; // Версия кеша увеличена для обновления
-const DATA_CACHE_NAME = 'cat-archive-data-v2'; // Версия кеша данных также увеличена
+// public/sw.js
+
+const CACHE_NAME = 'cat-archive-shell-v3';
+const DATA_CACHE_NAME = 'cat-archive-data-v3';
 
 const URLS_TO_CACHE = [
   '/',
@@ -8,7 +10,7 @@ const URLS_TO_CACHE = [
   '/staff',
   '/login',
   '/manifest.json',
-  '/favicon.png', // Добавлена иконка
+  '/favicon.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
 ];
@@ -37,13 +39,17 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Принудительно активируем новый SW немедленно
   return self.clients.claim();
 });
 
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+
+  // Игнорируем запросы от расширений браузера, чтобы избежать ошибок в консоли
+  if (request.url.startsWith('chrome-extension://')) {
+    return;
+  }
 
   if (request.url.includes('/api/')) {
     event.respondWith(
@@ -67,29 +73,28 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
       return fetch(request).then((networkResponse) => {
-        // Проверяем, что ответ корректный перед кешированием
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
         }
-        return caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, networkResponse.clone());
-          return networkResponse;
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseToCache);
         });
+        return networkResponse;
       });
     })
   );
 });
 
-// --- НОВЫЕ ОБРАБОТЧИКИ ДЛЯ PUSH-УВЕДОМЛЕНИЙ ---
+// --- PUSH NOTIFICATION HANDLERS ---
 
-// Обработчик события push-уведомления
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : { title: 'Архив Кошек', body: 'У вас новое уведомление.' };
   
   const options = {
     body: data.body,
     icon: data.icon || '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png', // Иконка для статус-бара Android
+    badge: '/icons/icon-192x192.png',
     data: data.data || {}
   };
 
@@ -98,7 +103,6 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Обработчик клика по уведомлению
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -109,12 +113,14 @@ self.addEventListener('notificationclick', (event) => {
       type: 'window',
       includeUncontrolled: true,
     }).then((clientList) => {
-      if (clientList.length > 0) {
-        // Если вкладка уже открыта, фокусируемся на ней
-        return clientList[0].focus();
+      for (const client of clientList) {
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
       }
-      // Иначе открываем новую вкладку
-      return clients.openWindow(urlToOpen);
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
     })
   );
 });
