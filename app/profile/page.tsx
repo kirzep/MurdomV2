@@ -1,4 +1,5 @@
 // app/profile/page.tsx
+
 "use client";
 
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
@@ -122,7 +123,6 @@ export default function ProfilePage() {
         }
     };
     
-    // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОДПИСКИ ---
     const handleSubscriptionToggle = async () => {
         if (!('serviceWorker' in navigator && 'PushManager' in window)) {
             alert('Push-уведомления не поддерживаются в вашем браузере.');
@@ -135,7 +135,7 @@ export default function ProfilePage() {
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 alert('Вы не разрешили показ уведомлений. Чтобы включить их, измените настройки сайта в браузере.');
-                // Выходим из блока try, блок finally выполнится и снимет загрузку.
+                // *** ИЗМЕНЕНИЕ: Добавляем return, чтобы finally сработало сразу ***
                 return;
             }
 
@@ -175,9 +175,9 @@ export default function ProfilePage() {
         } catch (error) {
             console.error('Failed to toggle subscription: ', error);
             alert(`Не удалось изменить статус подписки: ${(error as Error).message}`);
-            // Восстанавливаем предыдущее состояние, если подписка не удалась
-            const sub = await navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription());
-            setIsSubscribed(!!sub);
+            // *** ИЗМЕНЕНИЕ: Этот блок кода вызывал повторную ошибку. Его нужно убрать. ***
+            // const sub = await navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription());
+            // setIsSubscribed(!!sub);
         } finally {
             // Этот блок выполнится всегда, гарантируя сброс состояния загрузки
             setIsSubscriptionLoading(false);

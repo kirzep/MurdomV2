@@ -35,11 +35,11 @@ export function getRevaccinationStatus(cat: Cat): RevaccinationInfo {
     // Если последняя прививка была ПЕРВОЙ, то следующая (вторая) через 1 месяц.
     if (lastVaccination.vaccinationStage === 'first') {
         nextDueDate = addMonths(lastVaccinationDate, 1);
-        alertMessage = "Требуется вторая вакцинация до";
+        alertMessage = "Требуется ревакцинация";
     } else {
         // Если последняя была ВТОРОЙ или РЕВАКЦИНАЦИЕЙ, то следующая через 1 год.
         nextDueDate = addYears(lastVaccinationDate, 1);
-        alertMessage = "Требуется ежегодная ревакцинация до";
+        alertMessage = "Требуется ежегодная вакцинация";
     }
 
     // Определяем окно для показа уведомлений
