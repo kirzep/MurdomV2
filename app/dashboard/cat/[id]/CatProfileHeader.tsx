@@ -1,4 +1,3 @@
-// app/dashboard/cat/[id]/CatProfileHeader.tsx (ИСПРАВЛЕН)
 "use client";
 
 import { Cat } from "@/types";
@@ -59,7 +58,8 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
                 {alertInfo.status === 'overdue' ? 'Внимание, задача просрочена!' : 'Требуется обработка!'}
               </p>
               <p className="text-sm">
-                {alertInfo.message} {format(alertInfo.dueDate, 'd MMMM yy', { locale: ru })}.
+                 {/* Используем сообщение из хелпера */}
+                {alertInfo.message} до {format(alertInfo.dueDate, 'd MMMM yy', { locale: ru })}.
               </p>
             </div>
           </div>
