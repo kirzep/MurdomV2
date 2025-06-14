@@ -7,7 +7,6 @@ import { generateAvatar } from '@/lib/utils';
 import Fuse from 'fuse.js';
 import { Role } from '@prisma/client';
 
-// GET-запрос для получения всех кошек (доступен всем)
 export async function GET(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -15,14 +14,22 @@ export async function GET(request: Request) {
     }
     const { searchParams } = new URL(request.url);
     const searchQuery = searchParams.get('q');
+
     try {
         const allCats = await prisma.cat.findMany({
             orderBy: { createdAt: 'desc' },
-            include: { creator: true }
+            include: { 
+                creator: true,
+                // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ---
+                // Теперь мы всегда включаем обработки в ответ
+                treatments: true 
+            }
         });
+
         if (!searchQuery) {
             return NextResponse.json(allCats);
         }
+
         const fuse = new Fuse(allCats, { keys: ['name'], threshold: 0.4 });
         return NextResponse.json(fuse.search(searchQuery).map(item => item.item));
     } catch (error) {

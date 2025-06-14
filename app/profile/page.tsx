@@ -1,4 +1,3 @@
-// app/profile/page.tsx
 "use client";
 
 import { useState, useEffect, FormEvent } from 'react';
@@ -6,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck } from 'lucide-react';
+import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
@@ -18,6 +17,18 @@ const roleNames = {
     DEVELOPER: 'Разработчик',
 };
 
+// Helper функция для конвертации base64 строки в Uint8Array
+function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 export default function ProfilePage() {
     const { data: session, status, update } = useSession();
     const router = useRouter();
@@ -27,6 +38,10 @@ export default function ProfilePage() {
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // Новые состояния для подписки
+    const [isSubscribed, setIsSubscribed] = useState(false);
+    const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
@@ -36,7 +51,21 @@ export default function ProfilePage() {
             const imagePath = session.user.image ? `${appUrl}${session.user.image}` : null;
             setAvatarPreview(imagePath);
         }
-    }, [session, appUrl]);
+
+        if (status === 'authenticated') {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                navigator.serviceWorker.ready.then(reg => {
+                    reg.pushManager.getSubscription().then(sub => {
+                        setIsSubscribed(!!sub);
+                        setIsSubscriptionLoading(false);
+                    });
+                });
+            } else {
+                console.warn('Push notifications are not supported in this browser.');
+                setIsSubscriptionLoading(false);
+            }
+        }
+    }, [session, status, appUrl]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -89,6 +118,55 @@ export default function ProfilePage() {
             setIsLoading(false);
         }
     };
+    
+    const handleSubscriptionToggle = async () => {
+        if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+            alert('Push-уведомления не поддерживаются в вашем браузере.');
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            alert('Вы не разрешили показ уведомлений.');
+            return;
+        }
+
+        setIsSubscriptionLoading(true);
+        const registration = await navigator.serviceWorker.ready;
+        const existingSubscription = await registration.pushManager.getSubscription();
+
+        try {
+            if (existingSubscription) {
+                await existingSubscription.unsubscribe();
+                // Тут можно добавить API для удаления подписки с сервера
+                setIsSubscribed(false);
+                alert('Вы отписались от уведомлений.');
+            } else {
+                const response = await fetch('/api/push/vapid-key');
+                if (!response.ok) throw new Error('Could not fetch VAPID key.');
+                const { publicKey } = await response.json();
+                const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+                const newSubscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey,
+                });
+                
+                await fetch('/api/push/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newSubscription),
+                });
+                setIsSubscribed(true);
+                alert('Вы успешно подписались на уведомления!');
+            }
+        } catch (error) {
+            console.error('Failed to toggle subscription: ', error);
+            alert('Не удалось изменить статус подписки. Проверьте разрешения в настройках браузера.');
+        } finally {
+            setIsSubscriptionLoading(false);
+        }
+    };
 
     if (status === 'loading') {
         return <div className="h-screen flex items-center justify-center"><Spinner /></div>;
@@ -117,7 +195,7 @@ export default function ProfilePage() {
                             <img 
                                 src={currentAvatar}
                                 alt="Аватар профиля"
-                                className="w-32 h-32 rounded-full object-cover"
+                                className="w-32 h-32 rounded-full object-cover border-4 border-brand-primary-light"
                             />
                             {isEditing && (
                                 <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 w-10 h-10 bg-brand-primary text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-opacity-90 transition-all">
@@ -151,7 +229,7 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    <div className="mt-8 flex justify-center gap-4">
+                    <div className="mt-8 flex flex-wrap justify-center gap-4">
                         {isEditing ? (
                             <>
                                 <Button type="button" onClick={handleCancelEdit} variant="secondary">
@@ -166,6 +244,15 @@ export default function ProfilePage() {
                                 <Edit size={20} className="mr-2"/> Редактировать
                             </Button>
                         )}
+                         <Button 
+                            type="button" 
+                            onClick={handleSubscriptionToggle} 
+                            variant="secondary"
+                            isLoading={isSubscriptionLoading}
+                            >
+                            {isSubscribed ? <BellOff size={20} className="mr-2"/> : <Bell size={20} className="mr-2"/>}
+                            {isSubscribed ? 'Уведомления Вкл.' : 'Вкл. уведомления'}
+                        </Button>
                     </div>
                 </form>
             </div>

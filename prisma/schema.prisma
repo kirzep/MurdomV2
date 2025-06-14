@@ -28,21 +28,22 @@ enum TreatmentType {
 // --- Models ---
 
 model User {
-  id                      String       @id @default(cuid())
+  id                      String             @id @default(cuid())
   name                    String
-  email                   String?      @unique
+  email                   String?            @unique
   emailVerified           DateTime?
   image                   String?
   password                String?
-  role                    Role         @default(VOLUNTEER)
-  isProfileSetupComplete  Boolean      @default(false)
-  
+  role                    Role               @default(VOLUNTEER)
+  isProfileSetupComplete  Boolean            @default(false)
   accounts                Account[]
   sessions                Session[]
-  createdCats             Cat[]        @relation("Creator")
-  sentMessages            Message[]    @relation("Sender")
+  createdCats             Cat[]              @relation("Creator")
+  sentMessages            Message[]          @relation("Sender")
   auditLogs               AuditLog[]
-  createdInvitations      Invitation[] @relation("CreatedBy")
+  createdInvitations      Invitation[]       @relation("CreatedBy")
+  // Связь с подписками на push-уведомления
+  subscriptions           PushSubscription[]
 }
 
 model Account {
@@ -58,7 +59,8 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
 }
 
@@ -74,6 +76,7 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
@@ -96,20 +99,22 @@ model Cat {
   updatedAt   DateTime   @updatedAt
   notes       String?
   creatorId   String?
-  creator     User?      @relation("Creator", fields: [creatorId], references: [id])
+  creator     User?      @relation("Creator", fields: [creatorId], references: [id], onDelete: SetNull) // Уважаем onDelete: SetNull
   treatments  Treatment[]
   documents   Document[]
   auditLogs   AuditLog[]
 }
 
 model Treatment {
-  id          String        @id @default(cuid())
-  catId       String
-  cat         Cat           @relation(fields: [catId], references: [id], onDelete: Cascade)
-  type        TreatmentType
-  date        DateTime
-  productName String
-  createdAt   DateTime      @default(now())
+  id               String        @id @default(cuid())
+  catId            String
+  cat              Cat           @relation(fields: [catId], references: [id], onDelete: Cascade)
+  type             TreatmentType
+  date             DateTime
+  productName      String
+  // Новое поле для отслеживания этапов вакцинации
+  vaccinationStage String?
+  createdAt        DateTime      @default(now())
 }
 
 model Document {
@@ -123,11 +128,11 @@ model Document {
 }
 
 model Message {
-  id         String   @id @default(cuid())
-  content    String
-  createdAt  DateTime @default(now())
-  senderId   String
-  sender     User     @relation("Sender", fields: [senderId], references: [id])
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  senderId  String
+  sender    User     @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
@@ -137,5 +142,16 @@ model AuditLog {
   catId     String
   cat       Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Новая модель для хранения подписок на Push-уведомления
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }

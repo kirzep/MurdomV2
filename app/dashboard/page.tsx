@@ -1,7 +1,7 @@
-// app/dashboard/page.tsx
+// app/dashboard/page.tsx (ИЗМЕНЕН)
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Cat, Role } from '@/types';
@@ -17,26 +17,27 @@ import SidePanel from '../components/SidePanel';
 import ChatWidget from '../components/ChatWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
+import RevaccinationAlerts from './RevaccinationAlerts';
+import RevaccinationModal from './RevaccinationModal';
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
-const getRandomDuration = () => Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
+const getRandomDuration = () => Math.floor(Math.random() * (4000 - 2000 + 1)) + 2000;
 
-const CURRENT_APP_VERSION = '1.1.1';
+const CURRENT_APP_VERSION = '1.2.2'; // Обновляем версию
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Состояние для приветственного экрана инициализируется из sessionStorage
   const [showWelcomeScreen, setShowWelcomeScreen] = useState(() => {
     if (typeof window !== 'undefined') {
       return !sessionStorage.getItem('hasSeenLoadingScreen');
     }
-    return true; // По умолчанию показываем на сервере
+    return true;
   });
   
   const [loadingDuration, setLoadingDuration] = useState(0);
@@ -45,7 +46,10 @@ export default function DashboardPage() {
   const [cats, setCats] = useState<Cat[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Состояния модальных окон
+  const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
+  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false); // Состояние для модалки с алертами
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
@@ -54,19 +58,25 @@ export default function DashboardPage() {
     session?.user.role === Role.MEDICAL_STAFF || 
     session?.user.role === Role.TRUSTED_PERSON ||
     session?.user.role === Role.DEVELOPER;
+    
+  const filteredCats = useMemo(() => {
+    if (!searchQuery) return cats;
+    return cats.filter(cat => cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+  }, [cats, debouncedSearchQuery, searchQuery]);
 
-  // Логика для экрана загрузки и патчноутов
   useEffect(() => {
     if (showWelcomeScreen) {
       const duration = getRandomDuration();
       setLoadingDuration(duration);
       const timer = setTimeout(() => {
         setShowWelcomeScreen(false);
-        sessionStorage.setItem('hasSeenLoadingScreen', 'true');
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('hasSeenLoadingScreen', 'true');
+        }
       }, duration);
       return () => clearTimeout(timer);
     } else {
-        const lastSeenVersion = localStorage.getItem('appVersion');
+        const lastSeenVersion = typeof window !== 'undefined' ? localStorage.getItem('appVersion') : null;
         if (lastSeenVersion !== CURRENT_APP_VERSION) {
             setShowPatchNotes(true);
         }
@@ -75,9 +85,10 @@ export default function DashboardPage() {
 
   const handleClosePatchNotes = () => {
     setShowPatchNotes(false);
-    localStorage.setItem('appVersion', CURRENT_APP_VERSION);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('appVersion', CURRENT_APP_VERSION);
+    }
   };
-
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -88,7 +99,7 @@ export default function DashboardPage() {
       const fetchCats = async () => {
         setIsDataLoading(true);
         try {
-          const response = await fetch(`/api/cats?q=${debouncedSearchQuery}`);
+          const response = await fetch(`/api/cats`);
           const data = await response.json();
           setCats(data);
         } catch (error) {
@@ -99,13 +110,12 @@ export default function DashboardPage() {
       };
       fetchCats();
     }
-  }, [status, debouncedSearchQuery, router]);
+  }, [status, router]);
 
   const handleCatAdded = (newCat: Cat) => {
       setCats(prevCats => [newCat, ...prevCats]);
   }
 
-  // Пока идет проверка сессии, показываем основной спиннер
   if (status === 'loading') {
     return <div className="h-screen"><Spinner /></div>;
   }
@@ -118,13 +128,12 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
       
-      {/* Модальные окна теперь не зависят от основного контента */}
       <PatchNotesModal isOpen={showPatchNotes} onClose={handleClosePatchNotes} version={CURRENT_APP_VERSION} />
       <SidePanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
-      {canEdit && <AddCatModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onCatAdded={handleCatAdded} />}
+      {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
       <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <RevaccinationModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} cats={cats} />
       
-      {/* Основной контент будет виден только после исчезновения экрана загрузки */}
       {!showWelcomeScreen && (
         <motion.div 
           initial={{ opacity: 0 }}
@@ -134,7 +143,7 @@ export default function DashboardPage() {
         >
           <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
             <div className="container mx-auto px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
                       <Button onClick={() => setIsPanelOpen(true)} variant="secondary" className="p-2 h-12 w-12 rounded-full">
                         <Menu size={28} />
@@ -144,7 +153,7 @@ export default function DashboardPage() {
                         <span className="hidden sm:inline">Архив</span>
                       </h1>
                     </div>
-                    <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg mx-2">
+                    <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg">
                         <Input 
                             placeholder="Поиск..."
                             icon={<Search size={22}/>}
@@ -154,7 +163,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                         {canEdit && (
-                          <Button onClick={() => setIsModalOpen(true)} className="p-2 h-12 w-12 sm:w-auto sm:px-4 rounded-full sm:rounded-lg">
+                          <Button onClick={() => setIsAddCatModalOpen(true)} className="p-2 h-12 w-12 sm:w-auto sm:px-4 rounded-full sm:rounded-lg">
                               <Plus size={26} className="sm:mr-2"/> 
                               <span className="hidden sm:inline">Добавить</span>
                           </Button>
@@ -168,25 +177,28 @@ export default function DashboardPage() {
           </header>
           
           <main className="container mx-auto p-4">
+             {/* Передаем cats и обработчик клика в баннер */}
+             <RevaccinationAlerts cats={cats} onClick={() => setIsAlertsModalOpen(true)} />
+
             {isDataLoading ? (
                <div className="h-64 flex items-center justify-center"><Spinner /></div>
             ) : (
               <AnimatePresence>
-                  {cats.length > 0 ? (
+                  {filteredCats.length > 0 ? (
                       <motion.div 
                           variants={containerVariants}
                           initial="hidden"
                           animate="visible"
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
                       >
-                          {cats.map(cat => (
+                          {filteredCats.map(cat => (
                               <CatCard key={cat.id} cat={cat} />
                           ))}
                       </motion.div>
                   ) : (
                       <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="text-center py-20">
-                          <h2 className="text-2xl font-semibold text-brand-text-primary">Кошек пока нет</h2>
-                          {canEdit && <p className="text-brand-text-secondary mt-2">Нажмите "Добавить", чтобы создать первую запись.</p>}
+                          <h2 className="text-2xl font-semibold text-brand-text-primary">Кошек по вашему запросу не найдено</h2>
+                          <p className="text-brand-text-secondary mt-2">Попробуйте изменить поисковый запрос.</p>
                       </motion.div>
                   )}
                </AnimatePresence>

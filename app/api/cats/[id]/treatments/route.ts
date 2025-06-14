@@ -1,4 +1,4 @@
-// app/api/cats/[id]/treatments/route.ts
+// app/api/cats/[id]/treatments/route.ts (ИЗМЕНЕН)
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
@@ -12,7 +12,12 @@ const treatmentTypeMap: Record<TreatmentType, string> = {
   [TreatmentType.VACCINATION]: 'вакцинация',
 };
 
-// Функция для проверки, является ли строка допустимым типом обработки
+const vaccinationStageMap: Record<string, string> = {
+    'first': '(1 этап)',
+    'second': '(2 этап)',
+    'revaccination': '(ревакцинация)'
+}
+
 function isValidTreatmentType(type: any): type is TreatmentType {
     return Object.values(TreatmentType).includes(type);
 }
@@ -25,9 +30,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
     try {
         const body = await request.json();
-        const { type, date, productName } = body;
+        const { type, date, productName, vaccinationStage } = body;
 
-        // ИСПРАВЛЕНИЕ: Используем функцию-предохранитель для проверки типа
         if (!isValidTreatmentType(type)) {
             return NextResponse.json({ error: 'Invalid or missing treatment type' }, { status: 400 });
         }
@@ -36,16 +40,30 @@ export async function POST(request: Request, { params }: { params: { id: string 
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
         
-        const [, newTreatment] = await prisma.$transaction([
-            prisma.auditLog.create({
-                data: {
-                    // Теперь TypeScript уверен, что 'type' имеет правильный тип
-                    change: `добавил(а) обработку ${treatmentTypeMap[type]}: "${productName}"`,
-                    catId: params.id, userId: session.user.id,
-                }
-            }),
-            prisma.treatment.create({ data: { catId: params.id, type, date: new Date(date), productName }})
-        ]);
+        let changeDescription = `добавил(а) обработку ${treatmentTypeMap[type]}: "${productName}"`;
+        if (type === TreatmentType.VACCINATION && vaccinationStage) {
+            const stageText = vaccinationStageMap[vaccinationStage] || '';
+            changeDescription = `добавил(а) вакцинацию ${stageText}: "${productName}"`;
+        }
+
+        const newTreatment = await prisma.treatment.create({ 
+            data: { 
+                catId: params.id, 
+                type, 
+                date: new Date(date), 
+                productName,
+                vaccinationStage: type === TreatmentType.VACCINATION ? vaccinationStage : null 
+            }
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                change: changeDescription,
+                catId: params.id, 
+                userId: session.user.id,
+            }
+        });
+
         return NextResponse.json(newTreatment, { status: 201 });
     } catch (error) {
         console.error('Failed to add treatment:', error);
@@ -53,6 +71,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 }
 
+// DELETE-запрос остается без изменений
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
     const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
@@ -67,15 +86,13 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     try {
         const treatmentToDelete = await prisma.treatment.findUnique({ where: { id: treatmentId }});
         if (treatmentToDelete) {
-             await prisma.$transaction([
-                prisma.auditLog.create({
-                    data: {
-                        change: `удалил(а) обработку: "${treatmentToDelete.productName}"`,
-                        catId: params.id, userId: session.user.id,
-                    }
-                }),
-                prisma.treatment.delete({ where: { id: treatmentId }})
-             ]);
+             await prisma.treatment.delete({ where: { id: treatmentId }});
+             await prisma.auditLog.create({
+                 data: {
+                     change: `удалил(а) обработку: "${treatmentToDelete.productName}"`,
+                     catId: params.id, userId: session.user.id,
+                 }
+             });
         }
         return NextResponse.json({ message: 'Treatment deleted successfully' });
     } catch (error) {

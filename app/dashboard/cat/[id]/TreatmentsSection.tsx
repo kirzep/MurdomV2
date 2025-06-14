@@ -1,8 +1,7 @@
-// app/dashboard/cat/[id]/TreatmentsSection.tsx
 "use client";
 
-import { Cat, TreatmentType } from "@/types";
-import { Plus, Trash2, Pill, Bug, Ear, Syringe } from 'lucide-react';
+import { Cat, Treatment, TreatmentType } from "@/types";
+import { Plus, Trash2, Pill, Bug, Ear, Syringe, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import Button from "@/app/components/ui/Button";
@@ -40,14 +39,29 @@ const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ cat, canEdit, onA
         {allTreatments.length > 0 ? (
           allTreatments.map(t => {
             const meta = treatmentMeta[t.type];
-            const Icon = meta.icon;
+            let Icon = meta.icon;
+            let displayName = meta.name;
+            let iconColor = meta.color;
+
+            if (t.type === TreatmentType.VACCINATION) {
+                if (t.vaccinationStage === 'first') {
+                    displayName = 'Вакцинация (1 этап)';
+                    Icon = Syringe;
+                    iconColor = 'text-blue-500';
+                } else if (t.vaccinationStage === 'second') {
+                    displayName = 'Вакцинация (2 этап)';
+                    Icon = CheckCircle2;
+                    iconColor = 'text-emerald-500';
+                }
+            }
+            
             return (
               <div key={t.id} className="flex items-center justify-between bg-brand-background p-3 rounded-lg gap-2">
                 <div className="flex items-center gap-4 min-w-0">
-                  <Icon size={32} className={`${meta.color} flex-shrink-0`} />
+                  <Icon size={32} className={`${iconColor} flex-shrink-0`} />
                   <div className="truncate">
                     <p className="font-semibold text-brand-text-primary truncate">{t.productName}</p>
-                    <p className="text-sm text-brand-text-secondary capitalize">{meta.name}</p>
+                    <p className="text-sm text-brand-text-secondary capitalize">{displayName}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">

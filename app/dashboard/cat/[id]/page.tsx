@@ -1,4 +1,3 @@
-// app/dashboard/cat/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, FormEvent, ChangeEvent, useRef } from "react";
@@ -56,7 +55,12 @@ export default function CatProfilePage() {
     const [viewingDoc, setViewingDoc] = useState<DocType | null>(null);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     
-    const [treatmentForm, setTreatmentForm] = useState({ type: TreatmentType.WORMS, date: '', productName: '' });
+    const [treatmentForm, setTreatmentForm] = useState({ 
+        type: TreatmentType.WORMS, 
+        date: new Date().toISOString().split('T')[0], 
+        productName: '',
+        vaccinationStage: 'first'
+    });
     const [docFilesToUpload, setDocFilesToUpload] = useState<DocUploadState[]>([]);
     const [isFormLoading, setIsFormLoading] = useState(false);
 
@@ -85,7 +89,7 @@ export default function CatProfilePage() {
             setIsLoading(true);
             fetchCatDataAndLogs();
         }
-    }, [id, status]);
+    }, [id, status, router]);
 
     const handleDocFilesChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -121,7 +125,7 @@ export default function CatProfilePage() {
 
     const handleDeleteCat = async () => {
         if (!cat) return;
-        if (confirm(`Вы уверены, что хотите удалить профиль кошки "${cat.name}"? Это действие необратимо.`)) {
+        if (window.confirm(`Вы уверены, что хотите удалить профиль кошки "${cat.name}"? Это действие необратимо.`)) {
             try {
                 await fetch(`/api/cats/${id}`, { method: 'DELETE' });
                 alert('Профиль удален.');
@@ -134,7 +138,7 @@ export default function CatProfilePage() {
     };
 
     const handleDeleteTreatment = async (treatmentId: string) => {
-        if (confirm('Вы уверены, что хотите удалить эту запись?')) {
+        if (window.confirm('Вы уверены, что хотите удалить эту запись?')) {
             await fetch(`/api/cats/${id}/treatments?treatmentId=${treatmentId}`, { method: 'DELETE' });
             await fetchCatDataAndLogs();
         }
@@ -144,9 +148,13 @@ export default function CatProfilePage() {
         e.preventDefault();
         setIsFormLoading(true);
         try {
+            const body = {
+                ...treatmentForm,
+                vaccinationStage: treatmentForm.type === TreatmentType.VACCINATION ? treatmentForm.vaccinationStage : null,
+            };
             await fetch(`/api/cats/${id}/treatments`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(treatmentForm),
+                body: JSON.stringify(body),
             });
             setIsAddTreatmentModalOpen(false);
             await fetchCatDataAndLogs();
@@ -158,7 +166,7 @@ export default function CatProfilePage() {
     };
 
     const handleDeleteDocument = async (docId: string) => {
-        if (confirm('Вы уверены, что хотите удалить этот документ?')) {
+        if (window.confirm('Вы уверены, что хотите удалить этот документ?')) {
             await fetch(`/api/cats/${id}/documents?documentId=${docId}`, { method: 'DELETE' });
             setViewingDoc(null);
             await fetchCatDataAndLogs();
@@ -267,11 +275,38 @@ export default function CatProfilePage() {
             {canEdit && (
                 <Modal isOpen={isAddTreatmentModalOpen} onClose={() => setIsAddTreatmentModalOpen(false)} title="Добавить запись об обработке">
                     <form onSubmit={handleAddTreatment} className="space-y-4">
-                        <select value={treatmentForm.type} onChange={e => setTreatmentForm({...treatmentForm, type: e.target.value as TreatmentType})} className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary">
-                            {Object.entries(treatmentMeta).map(([key, {name}]) => <option key={key} value={key} className="capitalize">{name}</option>)}
-                        </select>
-                        <Input type="date" value={treatmentForm.date} onChange={e => setTreatmentForm({...treatmentForm, date: e.target.value})} required/>
-                        <Input placeholder="Название препарата/вакцины" value={treatmentForm.productName} onChange={e => setTreatmentForm({...treatmentForm, productName: e.target.value})} required/>
+                        <div>
+                            <label className="block text-sm font-medium text-brand-text-secondary mb-1">Тип обработки</label>
+                            <select value={treatmentForm.type} onChange={e => setTreatmentForm({...treatmentForm, type: e.target.value as TreatmentType})} className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary">
+                                {Object.entries(treatmentMeta).map(([key, {name}]) => <option key={key} value={key} className="capitalize">{name}</option>)}
+                            </select>
+                        </div>
+                        
+                        {treatmentForm.type === TreatmentType.VACCINATION && (
+                            <div>
+                                <label className="block text-sm font-medium text-brand-text-secondary mb-1">Этап вакцинации</label>
+                                <select 
+                                    value={treatmentForm.vaccinationStage} 
+                                    onChange={e => setTreatmentForm({...treatmentForm, vaccinationStage: e.target.value})}
+                                    className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary"
+                                >
+                                    <option value="first">Первая</option>
+                                    <option value="second">Вторая</option>
+                                    <option value="revaccination">Ревакцинация</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                           <label className="block text-sm font-medium text-brand-text-secondary mb-1">Дата</label>
+                           <Input type="date" value={treatmentForm.date} onChange={e => setTreatmentForm({...treatmentForm, date: e.target.value})} required/>
+                        </div>
+
+                        <div>
+                           <label className="block text-sm font-medium text-brand-text-secondary mb-1">Название препарата/вакцины</label>
+                           <Input placeholder="Название..." value={treatmentForm.productName} onChange={e => setTreatmentForm({...treatmentForm, productName: e.target.value})} required/>
+                        </div>
+
                         <Button type="submit" isLoading={isFormLoading} className="w-full">Добавить запись</Button>
                     </form>
                 </Modal>
@@ -325,7 +360,7 @@ export default function CatProfilePage() {
                     <CatProfileHeader cat={cat} canEdit={canEdit} onEdit={() => setIsEditModalOpen(true)} onDelete={handleDeleteCat} onInfoClick={() => setIsLogModalOpen(true)} />
                     <div className="grid grid-cols-1 gap-6">
                         <NotesSection cat={cat} onUpdate={handleNotesUpdate} canEdit={canEdit} />
-                        <TreatmentsSection cat={cat} canEdit={canEdit} onAddClick={() => { setTreatmentForm({type: TreatmentType.WORMS, date: new Date().toISOString().split('T')[0], productName: ''}); setIsAddTreatmentModalOpen(true); }} onDeleteClick={handleDeleteTreatment} />
+                        <TreatmentsSection cat={cat} canEdit={canEdit} onAddClick={() => { setTreatmentForm({type: TreatmentType.WORMS, date: new Date().toISOString().split('T')[0], productName: '', vaccinationStage: 'first'}); setIsAddTreatmentModalOpen(true); }} onDeleteClick={handleDeleteTreatment} />
                         <DocumentsSection 
                             cat={cat} 
                             canEdit={canEdit} 

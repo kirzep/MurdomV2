@@ -1,13 +1,10 @@
-// types/index.ts
-
 export enum Role {
   VOLUNTEER = 'VOLUNTEER',
   MEDICAL_STAFF = 'MEDICAL_STAFF',
   TRUSTED_PERSON = 'TRUSTED_PERSON',
-  DEVELOPER = 'DEVELOPER', // Добавлено
+  DEVELOPER = 'DEVELOPER',
 }
 
-// ... остальная часть файла без изменений ...
 export interface User {
   id: string;
   name: string;
@@ -30,6 +27,8 @@ export interface Treatment {
   date: string;
   productName: string;
   createdAt: string;
+  // Добавляем 'revaccination' в возможные значения
+  vaccinationStage?: 'first' | 'second' | 'revaccination' | null;
 }
 
 export interface Document {

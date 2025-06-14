@@ -1,14 +1,15 @@
-// app/dashboard/CatCard.tsx
+// app/dashboard/CatCard.tsx (ИЗМЕНЕН)
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Cat } from '@/types';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Info } from 'lucide-react';
+import { Info, AlertTriangle } from 'lucide-react';
 import CreatorInfoModal from './CreatorInfoModal';
+import { getRevaccinationStatus, RevaccinationStatus } from '@/lib/revaccinationHelper';
 
 interface CatCardProps {
   cat: Cat;
@@ -21,6 +22,12 @@ const cardVariants = {
 
 const CatCard: React.FC<CatCardProps> = ({ cat }) => {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [vaccinationStatus, setVaccinationStatus] = useState<RevaccinationStatus>(null);
+
+  useEffect(() => {
+    const statusInfo = getRevaccinationStatus(cat);
+    setVaccinationStatus(statusInfo.status);
+  }, [cat]);
 
   const handleInfoClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -28,11 +35,14 @@ const CatCard: React.FC<CatCardProps> = ({ cat }) => {
     setIsInfoModalOpen(true);
   };
 
-  // Формируем абсолютный URL для аватара
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const avatarSrc = cat.avatarUrl 
     ? `${appUrl}${cat.avatarUrl}` 
     : `https://placehold.co/80x80/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+
+  const alertIconColor = vaccinationStatus === 'overdue' 
+    ? 'text-red-500' 
+    : 'text-yellow-500';
 
   return (
     <>
@@ -57,8 +67,15 @@ const CatCard: React.FC<CatCardProps> = ({ cat }) => {
                 alt={`Аватар ${cat.name}`}
                 className="w-20 h-20 object-cover rounded-full mr-4 border-2 border-brand-primary-light"
               />
-              <div>
-                <h3 className="text-xl font-bold text-brand-text-primary">{cat.name}</h3>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-brand-text-primary truncate">{cat.name}</h3>
+                  {vaccinationStatus && (
+                    <div title={vaccinationStatus === 'overdue' ? 'Просрочена ревакцинация!' : 'Скоро ревакцинация!'}>
+                      <AlertTriangle size={20} className={alertIconColor} />
+                    </div>
+                  )}
+                </div>
                 <p className="text-sm text-brand-text-secondary">
                   В архиве с: {format(new Date(cat.createdAt), 'd MMM yy', { locale: ru })} г.
                 </p>
