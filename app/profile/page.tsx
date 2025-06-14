@@ -1,6 +1,7 @@
+// app/profile/page.tsx
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
@@ -17,7 +18,7 @@ const roleNames = {
     DEVELOPER: 'Разработчик',
 };
 
-// Helper функция для конвертации base64 строки в Uint8Array
+// Вспомогательная функция для конвертации base64 строки в Uint8Array
 function urlBase64ToUint8Array(base64String: string) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -39,7 +40,6 @@ export default function ProfilePage() {
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     
-    // Новые состояния для подписки
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true);
 
@@ -59,6 +59,9 @@ export default function ProfilePage() {
                         setIsSubscribed(!!sub);
                         setIsSubscriptionLoading(false);
                     });
+                }).catch(error => {
+                    console.error("Service worker ready error:", error);
+                    setIsSubscriptionLoading(false);
                 });
             } else {
                 console.warn('Push notifications are not supported in this browser.');
@@ -67,7 +70,7 @@ export default function ProfilePage() {
         }
     }, [session, status, appUrl]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             setAvatarFile(file);
@@ -119,31 +122,39 @@ export default function ProfilePage() {
         }
     };
     
+    // --- ИСПРАВЛЕННАЯ ЛОГИКА ПОДПИСКИ ---
     const handleSubscriptionToggle = async () => {
         if (!('serviceWorker' in navigator && 'PushManager' in window)) {
             alert('Push-уведомления не поддерживаются в вашем браузере.');
             return;
         }
 
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') {
-            alert('Вы не разрешили показ уведомлений.');
-            return;
-        }
-
         setIsSubscriptionLoading(true);
-        const registration = await navigator.serviceWorker.ready;
-        const existingSubscription = await registration.pushManager.getSubscription();
 
         try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert('Вы не разрешили показ уведомлений. Чтобы включить их, измените настройки сайта в браузере.');
+                // Выходим из блока try, блок finally выполнится и снимет загрузку.
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.ready;
+            const existingSubscription = await registration.pushManager.getSubscription();
+
             if (existingSubscription) {
+                // Отписываемся
                 await existingSubscription.unsubscribe();
-                // Тут можно добавить API для удаления подписки с сервера
+                // TODO: Добавить API для удаления подписки с сервера для чистоты данных
                 setIsSubscribed(false);
-                alert('Вы отписались от уведомлений.');
+                alert('Вы успешно отписались от уведомлений.');
             } else {
+                // Подписываемся
                 const response = await fetch('/api/push/vapid-key');
-                if (!response.ok) throw new Error('Could not fetch VAPID key.');
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Не удалось получить ключ для подписки с сервера.');
+                }
                 const { publicKey } = await response.json();
                 const applicationServerKey = urlBase64ToUint8Array(publicKey);
 
@@ -157,13 +168,18 @@ export default function ProfilePage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newSubscription),
                 });
+                
                 setIsSubscribed(true);
                 alert('Вы успешно подписались на уведомления!');
             }
         } catch (error) {
             console.error('Failed to toggle subscription: ', error);
-            alert('Не удалось изменить статус подписки. Проверьте разрешения в настройках браузера.');
+            alert(`Не удалось изменить статус подписки: ${(error as Error).message}`);
+            // Восстанавливаем предыдущее состояние, если подписка не удалась
+            const sub = await navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription());
+            setIsSubscribed(!!sub);
         } finally {
+            // Этот блок выполнится всегда, гарантируя сброс состояния загрузки
             setIsSubscriptionLoading(false);
         }
     };
