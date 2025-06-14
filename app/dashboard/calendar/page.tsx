@@ -178,7 +178,7 @@ export default function CalendarPage() {
             </Link>
         </div>
         <header className="flex flex-wrap justify-between items-center gap-y-4 mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">Календарь событий</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Календарь вакцинаций</h1>
         </header>
         
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
