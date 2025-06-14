@@ -1,52 +1,30 @@
-/* kirzep/murdomv2/kirzep-MurdomV2-ba8d66fc10844c3cf5f7882245a466e99dd2f639/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    /* === WOW-ЭФФЕКТ: Улучшенный анимированный градиент === */
-    @apply text-brand-text-primary;
-    background: linear-gradient(
-      -45deg,
-      #e0e7ff, /* indigo-100 */
-      #f3e8ff, /* purple-100 */
-      #ffe4e6, /* rose-100 */
-      #d1fae5  /* emerald-100 */
-    );
-    background-size: 400% 400%;
-    animation: animated-gradient 25s ease infinite;
+    @apply bg-brand-background text-brand-text-primary;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* === WOW-ЭФФЕКТ: Более плавная и медленная анимация градиента === */
-@keyframes animated-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* Стилизация скроллбара (остается без изменений) */
+/* Обновленная стилизация скроллбара под новую тему */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f8fafc; /* brand-background */
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #e2e8f0; /* brand-border */
+  background: #d1d5db; /* Gray 300 */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1; /* slate-300 */
+  background: #9ca3af; /* Gray 400 */
 }

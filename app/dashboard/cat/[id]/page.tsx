@@ -346,7 +346,8 @@ export default function CatProfilePage() {
             <div className="min-h-screen">
                 <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
                   <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                      <Link href="/dashboard" className="flex items-center gap-2 text-brand-primary hover:underline font-semibold">
+                        {/* ИЗМЕНЕНИЕ 2: Применяем стиль кнопки к ссылке */}
+                        <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                           <ArrowLeft size={18} />
                           Назад к списку
                       </Link>

@@ -1,4 +1,4 @@
-// app/dashboard/CatCard.tsx (ИЗМЕНЕН)
+// app/dashboard/CatCard.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -35,10 +35,20 @@ const CatCard: React.FC<CatCardProps> = ({ cat }) => {
     setIsInfoModalOpen(true);
   };
 
+  // --- ИСПРАВЛЕНИЕ ЛОГИКИ АВАТАРА ---
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-  const avatarSrc = cat.avatarUrl 
-    ? `${appUrl}${cat.avatarUrl}` 
-    : `https://placehold.co/80x80/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+  let avatarSrc: string;
+  if (cat.avatarUrl) {
+    if (cat.avatarUrl.startsWith('data:')) {
+      avatarSrc = cat.avatarUrl; // Это Data URL, используем как есть
+    } else {
+      avatarSrc = `${appUrl}${cat.avatarUrl}`; // Это путь к файлу, добавляем хост
+    }
+  } else {
+    // Запасной вариант, если URL вообще отсутствует
+    avatarSrc = `https://placehold.co/80x80/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+  }
+  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
   const alertIconColor = vaccinationStatus === 'overdue' 
     ? 'text-red-500' 

@@ -9,27 +9,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        'brand-background': '#f8fafc', // Slate 50
-        'brand-surface': '#ffffff',    // White
-        'brand-primary': '#818cf8',    // Indigo 400
-        'brand-primary-light': '#c7d2fe', // Indigo 200
-        'brand-secondary': '#a7f3d0', // Emerald 200
-        'brand-accent': '#fca5a5',    // Red 400
-        'brand-text-primary': '#1e293b', // Slate 800
-        'brand-text-secondary': '#64748b', // Slate 500
-        'brand-border': '#e2e8f0',   // Slate 200
-      },
-      backgroundImage: {
-        'gradient-main': 'linear-gradient(to top right, var(--tw-gradient-stops))',
-      },
-      keyframes: {
-        'fade-in': {
-          '0%': { opacity: '0', transform: 'translateY(-10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-      },
-      animation: {
-        'fade-in': 'fade-in 0.5s ease-out forwards',
+        // Базовые цвета (остаются без изменений)
+        'brand-background': '#f8fafc', // Светло-серый фон (Slate 50)
+        'brand-surface': '#ffffff',    // Белый для карточек и модальных окон
+        'brand-border': '#e5e7eb',   // Нейтральная граница (Gray 200)
+
+        // --- ИЗМЕНЕНИЕ: Заменяем бирюзовую палитру на голубую ---
+        'brand-primary': '#38bdf8',       // Sky 400 - яркий, но не резкий голубой
+        'brand-primary-hover': '#0ea5e9', // Sky 500 для наведения
+        'brand-primary-light': '#f0f9ff', // Очень светлый Sky 50 для подложек
+        
+        // Второстепенный цвет для кнопок и др.
+        'brand-secondary': '#e5e7eb',        // Gray 200
+        'brand-secondary-hover': '#d1d5db', // Gray 300 для наведения
+
+        // Цвет для акцентов и предупреждений
+        'brand-accent': '#f87171',    // Мягкий красный (Red 400)
+        
+        // Цвета текста
+        'brand-text-primary': '#1f2937', // Почти черный, но мягче (Gray 800)
+        'brand-text-secondary': '#6b7280', // Серый для второстепенного текста (Gray 500)
+        'brand-text-on-primary': '#ffffff', // Белый текст на основной кнопке
       },
     },
   },

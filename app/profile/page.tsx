@@ -1,5 +1,4 @@
 // app/profile/page.tsx
-
 "use client";
 
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
@@ -19,7 +18,6 @@ const roleNames = {
     DEVELOPER: 'Разработчик',
 };
 
-// Вспомогательная функция для конвертации base64 строки в Uint8Array
 function urlBase64ToUint8Array(base64String: string) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -135,7 +133,6 @@ export default function ProfilePage() {
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 alert('Вы не разрешили показ уведомлений. Чтобы включить их, измените настройки сайта в браузере.');
-                // *** ИЗМЕНЕНИЕ: Добавляем return, чтобы finally сработало сразу ***
                 return;
             }
 
@@ -143,13 +140,10 @@ export default function ProfilePage() {
             const existingSubscription = await registration.pushManager.getSubscription();
 
             if (existingSubscription) {
-                // Отписываемся
                 await existingSubscription.unsubscribe();
-                // TODO: Добавить API для удаления подписки с сервера для чистоты данных
                 setIsSubscribed(false);
                 alert('Вы успешно отписались от уведомлений.');
             } else {
-                // Подписываемся
                 const response = await fetch('/api/push/vapid-key');
                 if (!response.ok) {
                     const err = await response.json();
@@ -175,11 +169,7 @@ export default function ProfilePage() {
         } catch (error) {
             console.error('Failed to toggle subscription: ', error);
             alert(`Не удалось изменить статус подписки: ${(error as Error).message}`);
-            // *** ИЗМЕНЕНИЕ: Этот блок кода вызывал повторную ошибку. Его нужно убрать. ***
-            // const sub = await navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription());
-            // setIsSubscribed(!!sub);
         } finally {
-            // Этот блок выполнится всегда, гарантируя сброс состояния загрузки
             setIsSubscriptionLoading(false);
         }
     };
@@ -198,8 +188,9 @@ export default function ProfilePage() {
     return (
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-2xl mx-auto">
-                <div className="mb-4">
-                     <Link href="/dashboard" className="flex items-center gap-2 text-brand-primary hover:underline font-semibold w-fit">
+                {/* ИЗМЕНЕНИЕ 2: Применяем стиль кнопки к ссылке */}
+                <div className="mb-8">
+                     <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                         <ArrowLeft size={18} />
                         Вернуться в архив
                     </Link>

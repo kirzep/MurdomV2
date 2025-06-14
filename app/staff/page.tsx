@@ -163,11 +163,9 @@ export default function StaffPage() {
         }
     };
     
-    // ИСПРАВЛЕНИЕ: Новая, более надежная функция копирования
     const copyToClipboard = () => {
         if (!inviteLink) return;
 
-        // Современный метод, который работает на сайтах с HTTPS
         if (navigator.clipboard && window.isSecureContext) {
             navigator.clipboard.writeText(inviteLink)
                 .then(() => {
@@ -176,11 +174,9 @@ export default function StaffPage() {
                 })
                 .catch(err => {
                     console.error('Современный метод копирования не удался: ', err);
-                    // Если современный метод не сработал, пробуем старый
                     fallbackCopyToClipboard();
                 });
         } else {
-            // Старый, универсальный метод для HTTP или старых браузеров
             fallbackCopyToClipboard();
         }
     };
@@ -219,16 +215,18 @@ export default function StaffPage() {
     return (
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-4xl mx-auto">
-                <div className="mb-8 flex justify-between items-center">
-                    <h1 className="text-3xl font-bold text-brand-text-primary flex items-center gap-3">
-                        <Users size={32}/>
-                        Персонал
-                    </h1>
-                     <Link href="/dashboard" className="text-brand-primary hover:underline font-semibold flex items-center gap-2">
+                {/* ИЗМЕНЕНИЕ 1 и 2: Кнопка теперь слева, над заголовком и имеет новый стиль */}
+                <div className="mb-8">
+                    <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                         <ArrowLeft size={18} />
                         Вернуться в архив
                     </Link>
                 </div>
+
+                <h1 className="text-3xl font-bold text-brand-text-primary flex items-center gap-3 mb-8">
+                    <Users size={32}/>
+                    Персонал
+                </h1>
                 
                 {canManageInvites && (
                     <div className="mb-8 p-4 bg-brand-surface/60 backdrop-blur-sm rounded-xl">

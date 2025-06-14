@@ -24,7 +24,6 @@ export default function UserProfilePage() {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     
-    // Получаем базовый URL из переменных окружения
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
     useEffect(() => {
@@ -66,8 +65,9 @@ export default function UserProfilePage() {
     return (
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-2xl mx-auto">
-                 <div className="mb-4">
-                     <Link href="/dashboard" className="flex items-center gap-2 text-brand-primary hover:underline font-semibold w-fit">
+                 {/* ИЗМЕНЕНИЕ 2: Применяем стиль кнопки к ссылке */}
+                 <div className="mb-8">
+                     <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                         <ArrowLeft size={18} />
                         Вернуться в архив
                     </Link>

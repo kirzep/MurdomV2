@@ -1,7 +1,7 @@
 // public/sw.js
 
-const CACHE_NAME = 'cat-archive-shell-v4';
-const DATA_CACHE_NAME = 'cat-archive-data-v4';
+const CACHE_NAME = 'cat-archive-shell-v5';
+const DATA_CACHE_NAME = 'cat-archive-data-v5';
 
 const URLS_TO_CACHE = [
   '/',

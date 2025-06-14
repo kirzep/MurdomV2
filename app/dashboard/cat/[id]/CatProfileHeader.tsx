@@ -1,3 +1,4 @@
+// app/dashboard/cat/[id]/CatProfileHeader.tsx
 "use client";
 
 import { Cat } from "@/types";
@@ -23,7 +24,6 @@ const pluralizeYears = (age: number) => {
 };
 
 const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdit, onDelete, onInfoClick }) => {
-  // --- ИСПРАВЛЕНИЕ: Добавляем недостающее поле 'message' в начальное состояние ---
   const [alertInfo, setAlertInfo] = useState<RevaccinationInfo>({ status: null, dueDate: null, isOverdue: false, message: '' });
 
   useEffect(() => {
@@ -38,10 +38,19 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
 
   const ageString = getAge(cat.birthYear);
 
+  // --- ИСПРАВЛЕНИЕ ЛОГИКИ АВАТАРА ---
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-  const avatarSrc = cat.avatarUrl 
-    ? `${appUrl}${cat.avatarUrl}` 
-    : `https://placehold.co/128x128/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+  let avatarSrc: string;
+  if (cat.avatarUrl) {
+    if (cat.avatarUrl.startsWith('data:')) {
+      avatarSrc = cat.avatarUrl;
+    } else {
+      avatarSrc = `${appUrl}${cat.avatarUrl}`;
+    }
+  } else {
+    avatarSrc = `https://placehold.co/128x128/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+  }
+  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
   const bannerClasses = alertInfo.status === 'overdue'
     ? "bg-red-100 border-red-500 text-red-800"
@@ -58,7 +67,6 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
                 {alertInfo.status === 'overdue' ? 'Внимание, задача просрочена!' : 'Требуется обработка!'}
               </p>
               <p className="text-sm">
-                 {/* Используем сообщение из хелпера */}
                 {alertInfo.message} до {format(alertInfo.dueDate, 'd MMMM yy', { locale: ru })}.
               </p>
             </div>
@@ -86,7 +94,7 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
           <img
             src={avatarSrc}
             alt={`Аватар ${cat.name}`}
-            className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-4 border-brand-primary flex-shrink-0"
+            className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-4 border-brand-primary-light flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
               <h2 className="text-3xl sm:text-4xl font-bold text-brand-text-primary">{cat.name}</h2>
