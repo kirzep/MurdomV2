@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Cat } from '@/types';
+import { Cat, TreatmentType } from '@/types';
 import Spinner from '@/app/components/ui/Spinner';
 import { generateVaccinationEvents, CalendarEvent } from '@/lib/calendarHelper';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, addMonths, subMonths, getYear, isSameMonth, isSameDay, startOfYear, endOfYear, eachMonthOfInterval, parseISO } from 'date-fns';
@@ -33,19 +33,9 @@ const EventPill: React.FC<{ event: CalendarEvent }> = ({ event }) => {
 
 // Компонент для строки события в списке (для мобильных и годового вида)
 const EventRow: React.FC<{ event: CalendarEvent }> = ({ event }) => {
-    // --- ИСПРАВЛЕНИЕ ЛОГИКИ АВАТАРА ---
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    let avatarSrc: string;
-    if (event.catAvatarUrl) {
-      if (event.catAvatarUrl.startsWith('data:')) {
-        avatarSrc = event.catAvatarUrl;
-      } else {
-        avatarSrc = `${appUrl}${event.catAvatarUrl}`;
-      }
-    } else {
-      avatarSrc = `https://placehold.co/32x32/e2e8f0/64748b?text=${event.catName.charAt(0)}`;
-    }
-    // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+    const avatarSrc = event.catAvatarUrl
+        ? `${process.env.NEXT_PUBLIC_APP_URL || ''}${event.catAvatarUrl}`
+        : `https://placehold.co/32x32/e2e8f0/64748b?text=${event.catName.charAt(0)}`;
     
     let colorClasses = "border-l-4 border-sky-300";
     if (event.isProjected) {
@@ -69,9 +59,6 @@ const EventRow: React.FC<{ event: CalendarEvent }> = ({ event }) => {
         </Link>
     )
 }
-
-// ... остальной код файла остается без изменений
-// (здесь я его сократил для краткости, но вы должны использовать полную версию из предыдущего ответа)
 
 // ОСНОВНОЙ КОМПОНЕНТ СТРАНИЦЫ
 export default function CalendarPage() {
@@ -102,6 +89,8 @@ export default function CalendarPage() {
     setCurrentDate(prev => viewMode === 'month' ? addMonths(prev, amount) : addMonths(prev, amount * 12));
   };
   
+  // --- КОМПОНЕНТЫ ДЛЯ РАЗНЫХ ВИДОВ ОТОБРАЖЕНИЯ ---
+
   const MonthView = () => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate)
@@ -111,6 +100,7 @@ export default function CalendarPage() {
 
     return (
         <>
+            {/* Сетка для ПК */}
             <div className="hidden md:grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
                 {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
                     <div key={day} className="text-center font-semibold text-xs text-gray-500 py-2 bg-gray-50">{day}</div>
@@ -130,6 +120,7 @@ export default function CalendarPage() {
                     );
                 })}
             </div>
+            {/* Список для мобильных */}
             <div className="block md:hidden space-y-3">
                 {monthEvents.length > 0 
                     ? monthEvents.map(event => <EventRow key={event.catId + event.stage + event.date} event={event} />)
@@ -178,7 +169,7 @@ export default function CalendarPage() {
             </Link>
         </div>
         <header className="flex flex-wrap justify-between items-center gap-y-4 mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">Календарь вакцинаций</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Календарь событий</h1>
         </header>
         
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
@@ -197,7 +188,8 @@ export default function CalendarPage() {
 
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold capitalize text-gray-700">
-                    {viewMode === 'month' ? format(currentDate, "LLLL 'г.'", { locale: ru }) : format(currentDate, "yyyy 'год'")}
+                    {/* ИЗМЕНЕНИЕ: Добавлен токен года yyyy */}
+                    {viewMode === 'month' ? format(currentDate, "LLLL yyyy 'г.'", { locale: ru }) : format(currentDate, "yyyy 'год'")}
                 </h2>
                 <div className="flex gap-2">
                     <button onClick={() => changeDate(-1)} className="h-8 w-8 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors">

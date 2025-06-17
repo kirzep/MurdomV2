@@ -20,8 +20,6 @@ export async function GET(request: Request) {
             orderBy: { createdAt: 'desc' },
             include: { 
                 creator: true,
-                // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ---
-                // Теперь мы всегда включаем обработки в ответ
                 treatments: true 
             }
         });
@@ -38,10 +36,8 @@ export async function GET(request: Request) {
     }
 }
 
-// POST-запрос для добавления новой кошки
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
-    // ИСПРАВЛЕНИЕ: Явно указываем тип массива
     const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -66,5 +62,39 @@ export async function POST(request: Request) {
     } catch (error) {
         console.error("Failed to create cat:", error);
         return NextResponse.json({ error: 'Failed to create cat' }, { status: 500 });
+    }
+}
+
+// --- ИЗМЕНЕНИЕ: Новый метод DELETE для массового удаления ---
+export async function DELETE(request: Request) {
+    const session = await getServerSession(authOptions);
+    const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
+    if (!session || !allowedRoles.includes(session.user.role)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    try {
+        const { ids } = await request.json();
+
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return NextResponse.json({ error: 'An array of cat IDs is required' }, { status: 400 });
+        }
+        
+        // ВАЖНО: Мы не можем удалить кошек, которых создал пользователь с более высоким рангом
+        // Эту логику нужно будет добавить, если она необходима, сейчас удаление разрешено для всех.
+
+        const deleteResult = await prisma.cat.deleteMany({
+            where: {
+                id: {
+                    in: ids,
+                },
+            },
+        });
+
+        return NextResponse.json({ message: `${deleteResult.count} cats deleted successfully.` });
+
+    } catch (error) {
+        console.error("Failed to bulk delete cats:", error);
+        return NextResponse.json({ error: 'Failed to delete cats' }, { status: 500 });
     }
 }

@@ -1,7 +1,7 @@
-// app/dashboard/page.tsx (ИЗМЕНЕН)
+// app/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Cat, Role } from '@/types';
@@ -9,7 +9,7 @@ import CatCard from './CatCard';
 import Spinner from '../components/ui/Spinner';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Search, Plus, LogOut, CatIcon as FelineIcon, Menu, MessageCircle } from 'lucide-react';
+import { Search, Plus, LogOut, CatIcon as FelineIcon, Menu, MessageCircle, X, Trash2 } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -19,6 +19,7 @@ import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
 import RevaccinationAlerts from './RevaccinationAlerts';
 import RevaccinationModal from './RevaccinationModal';
+import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -26,8 +27,7 @@ const containerVariants = {
 };
 
 const getRandomDuration = () => Math.floor(Math.random() * (4000 - 2000 + 1)) + 2000;
-
-const CURRENT_APP_VERSION = '1.1.3'; // Обновляем версию
+const CURRENT_APP_VERSION = '1.2.2';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -42,27 +42,32 @@ export default function DashboardPage() {
   
   const [loadingDuration, setLoadingDuration] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(true);
-  
   const [cats, setCats] = useState<Cat[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
-  
-  // Состояния модальных окон
   const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
-  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false); // Состояние для модалки с алертами
+  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
   
-  const canEdit = 
-    session?.user.role === Role.MEDICAL_STAFF || 
-    session?.user.role === Role.TRUSTED_PERSON ||
-    session?.user.role === Role.DEVELOPER;
+  const canEdit = session?.user.role !== Role.VOLUNTEER;
     
   const filteredCats = useMemo(() => {
     if (!searchQuery) return cats;
     return cats.filter(cat => cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
   }, [cats, debouncedSearchQuery, searchQuery]);
+
+  const vaccinationAlerts = useMemo(() => {
+    return cats
+      .map(cat => {
+        const alert = getRevaccinationStatus(cat);
+        return alert.status ? { cat, alert } : null;
+      })
+      .filter((item): item is { cat: Cat; alert: RevaccinationInfo } => item !== null);
+  }, [cats]);
 
   useEffect(() => {
     if (showWelcomeScreen) {
@@ -90,35 +95,73 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchCats = useCallback(async () => {
+    setIsDataLoading(true);
+    try {
+      const response = await fetch(`/api/cats`);
+      const data = await response.json();
+      setCats(data);
+    } catch (error) {
+      console.error('Ошибка при загрузке кошек:', error);
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, []);
+  
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
       return;
     }
     if (status === 'authenticated') {
-      const fetchCats = async () => {
-        setIsDataLoading(true);
-        try {
-          const response = await fetch(`/api/cats`);
-          const data = await response.json();
-          setCats(data);
-        } catch (error) {
-          console.error('Ошибка при загрузке кошек:', error);
-        } finally {
-          setIsDataLoading(false);
-        }
-      };
       fetchCats();
     }
-  }, [status, router]);
+  }, [status, router, fetchCats]);
 
   const handleCatAdded = (newCat: Cat) => {
       setCats(prevCats => [newCat, ...prevCats]);
   }
 
-  if (status === 'loading') {
-    return <div className="h-screen"><Spinner /></div>;
-  }
+  const handleStartSelectionMode = useCallback((catId: string) => {
+    setIsSelectionMode(true);
+    setSelectedCats([catId]);
+  }, []);
+
+  const handleToggleSelection = useCallback((catId: string) => {
+    setSelectedCats(prev => 
+      prev.includes(catId) ? prev.filter(id => id !== catId) : [...prev, catId]
+    );
+  }, []);
+  
+  useEffect(() => {
+    if (isSelectionMode && selectedCats.length === 0) {
+        setIsSelectionMode(false);
+    }
+  }, [selectedCats, isSelectionMode]);
+
+  const handleCancelSelection = useCallback(() => {
+    setIsSelectionMode(false);
+    setSelectedCats([]);
+  }, []);
+
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedCats.length === 0) return;
+    if (confirm(`Вы уверены, что хотите удалить ${selectedCats.length} выбранных кошек? Это действие необратимо.`)) {
+        try {
+            await fetch('/api/cats', {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids: selectedCats })
+            });
+            await fetchCats();
+            handleCancelSelection();
+        } catch (error) {
+            alert((error as Error).message);
+        }
+    }
+  }, [selectedCats, fetchCats, handleCancelSelection]);
+
+  if (status === 'loading') return <div className="h-screen"><Spinner /></div>;
 
   return (
     <>
@@ -132,7 +175,7 @@ export default function DashboardPage() {
       <SidePanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
       {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
       <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-      <RevaccinationModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} cats={cats} />
+      <RevaccinationModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} alerts={vaccinationAlerts} />
       
       {!showWelcomeScreen && (
         <motion.div 
@@ -168,40 +211,29 @@ export default function DashboardPage() {
                               <span className="hidden sm:inline">Добавить</span>
                           </Button>
                         )}
-                        <Button variant="secondary" onClick={() => signOut({ callbackUrl: '/login' })} className="p-2 h-12 w-12 rounded-full">
-                            <LogOut size={26} />
-                        </Button>
                     </div>
                 </div>
             </div>
           </header>
           
           <main className="container mx-auto p-4">
-             {/* Передаем cats и обработчик клика в баннер */}
-             <RevaccinationAlerts cats={cats} onClick={() => setIsAlertsModalOpen(true)} />
+             <RevaccinationAlerts alerts={vaccinationAlerts} onClick={() => setIsAlertsModalOpen(true)} />
 
             {isDataLoading ? (
                <div className="h-64 flex items-center justify-center"><Spinner /></div>
             ) : (
-              <AnimatePresence>
-                  {filteredCats.length > 0 ? (
-                      <motion.div 
-                          variants={containerVariants}
-                          initial="hidden"
-                          animate="visible"
-                          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                      >
-                          {filteredCats.map(cat => (
-                              <CatCard key={cat.id} cat={cat} />
-                          ))}
-                      </motion.div>
-                  ) : (
-                      <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="text-center py-20">
-                          <h2 className="text-2xl font-semibold text-brand-text-primary">Кошек по вашему запросу не найдено</h2>
-                          <p className="text-brand-text-secondary mt-2">Попробуйте изменить поисковый запрос.</p>
-                      </motion.div>
-                  )}
-               </AnimatePresence>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredCats.map(cat => (
+                        <CatCard 
+                            key={cat.id} 
+                            cat={cat}
+                            isSelected={selectedCats.includes(cat.id)}
+                            isSelectionMode={isSelectionMode}
+                            onToggleSelection={handleToggleSelection}
+                            onStartSelectionMode={handleStartSelectionMode}
+                        />
+                    ))}
+                </div>
             )}
           </main>
           
@@ -210,6 +242,30 @@ export default function DashboardPage() {
                   <MessageCircle size={32} />
               </Button>
           </div>
+
+            <AnimatePresence>
+                {isSelectionMode && (
+                    <motion.div
+                        initial={{ y: "120%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "120%" }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+                        className="fixed bottom-4 inset-x-4 max-w-md mx-auto z-50"
+                    >
+                        <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
+                            <Button onClick={handleCancelSelection} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
+                                <X size={24}/>
+                            </Button>
+                            <span className="font-semibold">Выбрано: {selectedCats.length}</span>
+                            <Button onClick={handleDeleteSelected} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
+                                {/* ИЗМЕНЕНИЕ: Увеличен размер иконки */}
+                                <Trash2 size={24} className="sm:mr-2"/>
+                                <span className="hidden sm:inline">Удалить</span>
+                            </Button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
       )}
     </>

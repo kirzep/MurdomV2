@@ -1,3 +1,4 @@
+// app/dashboard/cat/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, FormEvent, ChangeEvent, useRef } from "react";
@@ -165,7 +166,8 @@ export default function CatProfilePage() {
         }
     };
 
-    const handleDeleteDocument = async (docId: string) => {
+    // ИЗМЕНЕНИЕ: Эта функция теперь отвечает только за удаление ОДНОГО документа
+    const handleDeleteSingleDocument = async (docId: string) => {
         if (window.confirm('Вы уверены, что хотите удалить этот документ?')) {
             await fetch(`/api/cats/${id}/documents?documentId=${docId}`, { method: 'DELETE' });
             setViewingDoc(null);
@@ -265,7 +267,7 @@ export default function CatProfilePage() {
                 doc={viewingDoc} 
                 onClose={() => setViewingDoc(null)} 
                 canEdit={canEdit} 
-                onDelete={() => viewingDoc && handleDeleteDocument(viewingDoc.id)}
+                onDelete={() => viewingDoc && handleDeleteSingleDocument(viewingDoc.id)}
             />
             <AuditLogModal isOpen={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} logs={auditLogs} catCreator={cat?.creator} catCreatedAt={cat?.createdAt} />
             
@@ -290,9 +292,9 @@ export default function CatProfilePage() {
                                     onChange={e => setTreatmentForm({...treatmentForm, vaccinationStage: e.target.value})}
                                     className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary"
                                 >
-                                    <option value="first">Первая</option>
-                                    <option value="second">Вторая</option>
-                                    <option value="revaccination">Ревакцинация</option>
+                                    <option value="first">Первичная вакцинация</option>
+                                    <option value="second">Ревакцинация</option>
+                                    <option value="revaccination">Ежегодная вакцинация</option>
                                 </select>
                             </div>
                         )}
@@ -346,7 +348,6 @@ export default function CatProfilePage() {
             <div className="min-h-screen">
                 <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
                   <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                        {/* ИЗМЕНЕНИЕ 2: Применяем стиль кнопки к ссылке */}
                         <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                           <ArrowLeft size={18} />
                           Назад к списку
@@ -368,7 +369,9 @@ export default function CatProfilePage() {
                             onAddClick={() => { setDocFilesToUpload([]); setIsAddDocModalOpen(true); }} 
                             onScanClick={() => setIsScanModalOpen(true)}
                             onDocumentClick={setViewingDoc}
-                            onDeleteClick={handleDeleteDocument}
+                            // Передаем разные функции для разных действий
+                            onDataChange={fetchCatDataAndLogs} // Для обновления после массового удаления
+                            onSingleDelete={handleDeleteSingleDocument} // Для одиночного удаления
                         />
                     </div>
                 </main>

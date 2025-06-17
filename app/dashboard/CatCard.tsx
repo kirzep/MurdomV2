@@ -1,18 +1,20 @@
 // app/dashboard/CatCard.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
 import { Cat } from '@/types';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { Info, AlertTriangle } from 'lucide-react';
-import CreatorInfoModal from './CreatorInfoModal';
-import { getRevaccinationStatus, RevaccinationStatus } from '@/lib/revaccinationHelper';
+import { CheckCircle2 } from 'lucide-react';
+import useLongPress from '@/hooks/useLongPress';
+import { useRouter } from 'next/navigation';
 
 interface CatCardProps {
   cat: Cat;
+  isSelected: boolean;
+  isSelectionMode: boolean;
+  onToggleSelection: (catId: string) => void;
+  onStartSelectionMode: (catId: string) => void;
 }
 
 const cardVariants = {
@@ -20,57 +22,45 @@ const cardVariants = {
   visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }
 };
 
-const CatCard: React.FC<CatCardProps> = ({ cat }) => {
-  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
-  const [vaccinationStatus, setVaccinationStatus] = useState<RevaccinationStatus>(null);
+const CatCard: React.FC<CatCardProps> = ({ cat, isSelected, isSelectionMode, onToggleSelection, onStartSelectionMode }) => {
+  const router = useRouter();
 
-  useEffect(() => {
-    const statusInfo = getRevaccinationStatus(cat);
-    setVaccinationStatus(statusInfo.status);
-  }, [cat]);
-
-  const handleInfoClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsInfoModalOpen(true);
+  const onLongPress = () => {
+    onStartSelectionMode(cat.id);
+  };
+  
+  const onClick = () => {
+    if (isSelectionMode) {
+      onToggleSelection(cat.id);
+    } else {
+      router.push(`/dashboard/cat/${cat.id}`);
+    }
   };
 
-  // --- ИСПРАВЛЕНИЕ ЛОГИКИ АВАТАРА ---
+  const longPressEvents = useLongPress(onLongPress, onClick, { delay: 500 });
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   let avatarSrc: string;
   if (cat.avatarUrl) {
     if (cat.avatarUrl.startsWith('data:')) {
-      avatarSrc = cat.avatarUrl; // Это Data URL, используем как есть
+      avatarSrc = cat.avatarUrl;
     } else {
-      avatarSrc = `${appUrl}${cat.avatarUrl}`; // Это путь к файлу, добавляем хост
+      avatarSrc = `${appUrl}${cat.avatarUrl}`;
     }
   } else {
-    // Запасной вариант, если URL вообще отсутствует
     avatarSrc = `https://placehold.co/80x80/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
   }
-  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-
-  const alertIconColor = vaccinationStatus === 'overdue' 
-    ? 'text-red-500' 
-    : 'text-yellow-500';
 
   return (
-    <>
-      <CreatorInfoModal
-        isOpen={isInfoModalOpen}
-        onClose={() => setIsInfoModalOpen(false)}
-        creator={cat.creator}
-        catName={cat.name}
-        catAddedDate={cat.createdAt}
-      />
-      <motion.div
-        variants={cardVariants}
-        layout
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.98 }}
-        className="relative group bg-brand-surface rounded-xl shadow-md overflow-hidden"
-      >
-        <Link href={`/dashboard/cat/${cat.id}`} className="block cursor-pointer">
+    <motion.div
+      variants={cardVariants}
+      layout
+      // ИЗМЕНЕНИЕ: Новый стиль рамки при выборе
+      className={`relative group bg-brand-surface rounded-xl shadow-md overflow-hidden cursor-pointer border-2 ${isSelected ? 'border-brand-primary' : 'border-transparent'}`}
+      {...longPressEvents}
+      transition={{ duration: 0.2 }}
+    >
+        <div className={`transition-opacity duration-200 ${isSelectionMode ? 'opacity-60' : 'opacity-100'}`}>
             <div className="flex items-center p-4">
               <img
                 src={avatarSrc}
@@ -78,29 +68,29 @@ const CatCard: React.FC<CatCardProps> = ({ cat }) => {
                 className="w-20 h-20 object-cover rounded-full mr-4 border-2 border-brand-primary-light"
               />
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
                   <h3 className="text-xl font-bold text-brand-text-primary truncate">{cat.name}</h3>
-                  {vaccinationStatus && (
-                    <div title={vaccinationStatus === 'overdue' ? 'Просрочена ревакцинация!' : 'Скоро ревакцинация!'}>
-                      <AlertTriangle size={20} className={alertIconColor} />
-                    </div>
-                  )}
-                </div>
                 <p className="text-sm text-brand-text-secondary">
                   В архиве с: {format(new Date(cat.createdAt), 'd MMM yy', { locale: ru })} г.
                 </p>
               </div>
             </div>
-        </Link>
-        <button
-          onClick={handleInfoClick}
-          className="absolute top-2 right-2 p-2 bg-white/70 backdrop-blur-sm rounded-full text-brand-text-secondary hover:text-brand-primary opacity-0 sm:opacity-100 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
-          title="Информация о записи"
-        >
-          <Info size={22} />
-        </button>
-      </motion.div>
-    </>
+        </div>
+        {/* ИЗМЕНЕНИЕ: Новый вид галочки в углу */}
+        <AnimatePresence>
+            {isSelectionMode && (
+                <motion.div 
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200"
+                >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 ${isSelected ? 'bg-brand-primary' : 'bg-white/80 border-2 border-gray-300'}`}>
+                        {isSelected && <CheckCircle2 size={20} className="text-white"/>}
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </motion.div>
   );
 };
 

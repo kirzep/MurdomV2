@@ -1,64 +1,25 @@
 // app/dashboard/RevaccinationAlerts.tsx
 "use client";
 
-import { useMemo } from 'react';
 import { Cat } from '@/types';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
-import Link from 'next/link';
 import { AlertTriangle, ChevronRight } from 'lucide-react';
-import { getRevaccinationStatus } from '@/lib/revaccinationHelper';
+// ИЗМЕНЕНИЕ: Импортируем нужный тип
+import { RevaccinationInfo } from '@/lib/revaccinationHelper';
 
-interface Alert {
-    catName: string;
-    catId: string;
-    dueDate: Date;
-    isOverdue: boolean;
-}
-
+// ИЗМЕНЕНИЕ: Интерфейс props теперь ожидает `alerts`, а не `cats`
 interface RevaccinationAlertsProps {
-    cats: Cat[];
+    alerts: Array<{ cat: Cat; alert: RevaccinationInfo }>;
     onClick: () => void;
 }
 
-export default function RevaccinationAlerts({ cats, onClick }: RevaccinationAlertsProps) {
-    const alerts: Alert[] = useMemo(() => {
-        console.log(`[DEBUG] Запуск проверки ревакцинаций. Всего кошек: ${cats.length}`);
-
-        const calculatedAlerts = cats
-            .map(cat => {
-                const statusInfo = getRevaccinationStatus(cat);
-
-                // Выводим в консоль данные по каждой кошке
-                console.log(`[DEBUG] Проверка кошки: "${cat.name}"`, {
-                    status: statusInfo.status,
-                    dueDate: statusInfo.dueDate ? statusInfo.dueDate.toLocaleDateString('ru-RU') : 'Нет',
-                    isOverdue: statusInfo.isOverdue,
-                    vaccinations: cat.treatments?.filter(t => t.type === 'VACCINATION') || 'Нет прививок'
-                });
-
-                if (statusInfo.status && statusInfo.dueDate) {
-                    return {
-                        catId: cat.id,
-                        catName: cat.name,
-                        dueDate: statusInfo.dueDate,
-                        isOverdue: statusInfo.isOverdue,
-                    };
-                }
-                return null;
-            })
-            .filter((alert): alert is Alert => alert !== null);
-        
-        console.log(`[DEBUG] Найдено уведомлений: ${calculatedAlerts.length}`, calculatedAlerts);
-        
-        return calculatedAlerts.sort((a, b) => Number(b.isOverdue) - Number(a.isOverdue) || a.dueDate.getTime() - b.dueDate.getTime());
-    }, [cats]);
-
+export default function RevaccinationAlerts({ alerts, onClick }: RevaccinationAlertsProps) {
+    
+    // ИЗМЕНЕНИЕ: Убрали useMemo, так как данные уже готовы
     if (alerts.length === 0) {
         return null;
     }
 
-    const hasOverdue = alerts.some(a => a.isOverdue);
+    const hasOverdue = alerts.some(a => a.alert.isOverdue);
     const bannerClasses = hasOverdue 
         ? "bg-red-100 border-red-500 text-red-800 hover:bg-red-200"
         : "bg-yellow-100 border-yellow-500 text-yellow-800 hover:bg-yellow-200";
@@ -73,7 +34,7 @@ export default function RevaccinationAlerts({ cats, onClick }: RevaccinationAler
                 <div className="flex items-center">
                     <AlertTriangle className="h-6 w-6 mr-3" />
                     <div>
-                        <p className="font-bold">{hasOverdue ? `Срочные задачи (${alerts.length})` : `Скоро ревакцинация (${alerts.length})`}</p>
+                        <p className="font-bold">{hasOverdue ? `Срочные задачи (${alerts.length})` : `Скоро вакцинация (${alerts.length})`}</p>
                         <p className="text-sm">Нажмите, чтобы посмотреть список кошек</p>
                     </div>
                 </div>

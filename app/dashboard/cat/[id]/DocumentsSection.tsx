@@ -3,7 +3,10 @@
 
 import { Cat, Document as DocType } from "@/types";
 import Button from "@/app/components/ui/Button";
-import { Plus, FileText, ScanLine, Trash2 } from 'lucide-react';
+import { Plus, ScanLine, Trash2, Download, X } from 'lucide-react';
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import DocumentItem from "./DocumentItem"; // ИЗМЕНЕНИЕ: Импортируем новый компонент
 
 interface DocumentsSectionProps {
     cat: Cat;
@@ -11,25 +14,76 @@ interface DocumentsSectionProps {
     onAddClick: () => void;
     onScanClick: () => void;
     onDocumentClick: (doc: DocType) => void;
-    // Добавляем недостающий проп
-    onDeleteClick: (docId: string) => void;
+    onDataChange: () => void;
+    onSingleDelete: (docId: string) => void;
 }
 
-const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onScanClick, onDocumentClick, onDeleteClick }) => {
+const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAddClick, onScanClick, onDocumentClick, onDataChange }) => {
     const documents = cat.documents || [];
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
-    const handleDelete = (e: React.MouseEvent, docId: string) => {
-        // Останавливаем "всплытие" события, чтобы не открылось модальное окно просмотра
-        e.stopPropagation();
-        onDeleteClick(docId);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+    
+    useEffect(() => {
+        if(isSelectionMode && selectedDocs.length === 0) {
+            setIsSelectionMode(false);
+        }
+    }, [selectedDocs, isSelectionMode]);
+
+    const handleStartSelection = useCallback((docId: string) => {
+        if (!canEdit) return;
+        setIsSelectionMode(true);
+        setSelectedDocs([docId]);
+    }, [canEdit]);
+
+    const handleToggleSelection = useCallback((docId: string) => {
+        setSelectedDocs(prev => 
+            prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
+        );
+    }, []);
+
+    const handleCancelSelection = useCallback(() => {
+        setIsSelectionMode(false);
+        setSelectedDocs([]);
+    }, []);
+
+    const handleDeleteSelected = useCallback(async () => {
+        if (selectedDocs.length === 0) return;
+        if (confirm(`Вы уверены, что хотите удалить ${selectedDocs.length} выбранных документ(а)?`)) {
+            try {
+                await fetch(`/api/cats/${cat.id}/documents`, {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ids: selectedDocs })
+                });
+                onDataChange();
+                handleCancelSelection();
+            } catch (error) {
+                alert("Не удалось удалить документы");
+            }
+        }
+    }, [cat.id, selectedDocs, onDataChange, handleCancelSelection]);
+    
+    const handleDownloadSelected = () => {
+        const selectedDocuments = documents.filter(doc => selectedDocs.includes(doc.id));
+        selectedDocuments.forEach((doc, index) => {
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = `${appUrl}${doc.filePath}`;
+                link.download = doc.fileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }, index * 300);
+        });
     };
 
     return (
         <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md">
             <div className="flex justify-between items-center mb-4 gap-2">
                 <h3 className="text-xl font-semibold text-brand-text-primary">Документы</h3>
-                {canEdit && (
+                {canEdit && !isSelectionMode && (
                   <div className="flex items-center gap-2">
                     <Button onClick={onScanClick} variant="secondary" className="p-2 sm:px-4 sm:w-auto w-11 h-11">
                         <ScanLine size={20} className="sm:mr-2"/>
@@ -44,38 +98,50 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
             </div>
             {documents.length > 0 ? (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                    {/* ИЗМЕНЕНИЕ: Используем новый компонент DocumentItem внутри цикла */}
                     {documents.map(doc => (
-                        <div key={doc.id} className="aspect-square bg-brand-background rounded-lg group relative">
-                            <button
-                                onClick={() => onDocumentClick(doc)}
-                                className="w-full h-full block focus:outline-none focus:ring-2 focus:ring-brand-primary rounded-lg"
-                                title={doc.fileName}
-                            >
-                                {doc.fileType.startsWith('image/') ? (
-                                    <img src={`${appUrl}${doc.filePath}`} alt={doc.fileName} className="w-full h-full object-cover rounded-lg" />
-                                ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center p-2 text-brand-text-secondary">
-                                        <FileText size={40} />
-                                        <span className="text-xs mt-2 text-center truncate w-full">{doc.fileName}</span>
-                                    </div>
-                                )}
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"></div>
-                            </button>
-                            {canEdit && (
-                               <button 
-                                  onClick={(e) => handleDelete(e, doc.id)} 
-                                  className="absolute top-1 right-1 p-1.5 rounded-full bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 scale-90 group-hover:scale-100"
-                                  title="Удалить документ"
-                                >
-                                    <Trash2 size={16}/>
-                               </button>
-                            )}
-                        </div>
+                        <DocumentItem
+                            key={doc.id}
+                            doc={doc}
+                            isSelected={selectedDocs.includes(doc.id)}
+                            isSelectionMode={isSelectionMode}
+                            onToggleSelection={handleToggleSelection}
+                            onStartSelection={handleStartSelection}
+                            onOpenDocument={onDocumentClick}
+                        />
                     ))}
                 </div>
             ) : (
                 <p className="text-brand-text-secondary italic text-center py-4">Документов пока нет.</p>
             )}
+
+            <AnimatePresence>
+                {isSelectionMode && (
+                    <motion.div
+                        initial={{ y: "120%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "120%" }}
+                        className="fixed bottom-4 inset-x-4 max-w-md mx-auto z-50"
+                    >
+                        <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
+                            <Button onClick={handleCancelSelection} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
+                                <X size={24}/>
+                            </Button>
+                            <span className="font-semibold text-sm">Выбрано: {selectedDocs.length}</span>
+                            <div className="flex gap-2">
+                                <Button onClick={handleDownloadSelected} variant="secondary" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
+                                    <Download size={24} className="sm:mr-2"/>
+                                    <span className="hidden sm:inline">Скачать</span>
+                                </Button>
+                                <Button onClick={handleDeleteSelected} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
+                                    <Trash2 size={24} className="sm:mr-2"/>
+                                    <span className="hidden sm:inline">Удалить</span>
+                                </Button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
