@@ -2,7 +2,7 @@
 
 // ВАЖНО: При каждом новом развертывании приложения меняйте эту версию!
 // Например, 'v6', 'v7' и т.д. Это гарантирует, что старый кеш удалится.
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const CACHE_NAME = `cat-archive-shell-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `cat-archive-data-${CACHE_VERSION}`;
 
