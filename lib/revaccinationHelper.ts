@@ -1,8 +1,8 @@
 // lib/revaccinationHelper.ts
-import { Cat, TreatmentType } from '@/types';
-import { addYears, addMonths, isPast, isToday as isTodayFns, differenceInDays } from 'date-fns';
+import { Cat, Treatment, TreatmentType } from '@/types';
+import { addYears, addDays, isPast, isToday as isTodayFns, differenceInDays, isAfter, startOfDay } from 'date-fns';
 
-export type RevaccinationStatus = 'overdue' | 'upcoming' | 'due_soon' | null;
+export type RevaccinationStatus = 'overdue' | 'upcoming' | null;
 
 export interface RevaccinationInfo {
     status: RevaccinationStatus;
@@ -12,64 +12,72 @@ export interface RevaccinationInfo {
 }
 
 export function getRevaccinationStatus(cat: Cat): RevaccinationInfo {
-    const now = new Date();
-    
+    const today = startOfDay(new Date());
+
     const allVaccinations = (cat.treatments || [])
         .filter(t => t.type === TreatmentType.VACCINATION && t.vaccinationStage)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    if (allVaccinations.length === 0) {
-        return { status: null, dueDate: null, isOverdue: false, message: "" };
-    }
+    // --- ШАГ 1: Проверка запланированных в будущем вакцинаций ---
+    const futureVaccinations = allVaccinations.filter(v => isAfter(startOfDay(new Date(v.date)), today));
+    if (futureVaccinations.length > 0) {
+        const earliestFutureVaxDate = startOfDay(new Date(futureVaccinations[0].date));
+        const daysUntil = differenceInDays(earliestFutureVaxDate, today);
 
-    const firstVaccination = allVaccinations.find(v => v.vaccinationStage === 'first');
-    if (!firstVaccination) return { status: null, dueDate: null, isOverdue: false, message: "" };
-
-    const secondVaccination = allVaccinations.find(v => v.vaccinationStage === 'second');
-
-    // --- СЦЕНАРИЙ 1: ВТОРАЯ ПРИВИВКА ---
-    if (!secondVaccination) {
-        const dueDate = addMonths(new Date(firstVaccination.date), 1);
-        const isOverdue = isPast(dueDate) && !isTodayFns(dueDate);
-        const daysUntil = differenceInDays(dueDate, now);
-
-        // Условие для показа уведомления: просрочено ИЛИ предстоит в ближайшие 14 дней.
-        if (isOverdue || (daysUntil >= 0 && daysUntil <= 14)) {
-            // ИЗМЕНЕНИЕ: Динамическое формирование сообщения
-            const message = `${isOverdue ? 'Требовалась' : 'Требуется'} ревакцинация`;
+        if (daysUntil <= 7) {
+            let message = 'Запланирована вакцинация';
+            const stage = futureVaccinations[0].vaccinationStage;
+            if (stage === 'second') message = 'Запланирована ревакцинация';
+            if (stage === 'revaccination') message = 'Запланирована ежегодная вакцинация';
+            
             return {
-                status: isOverdue ? 'overdue' : 'upcoming',
-                dueDate,
-                isOverdue,
-                message,
+                status: 'upcoming', dueDate: earliestFutureVaxDate, isOverdue: false, message: message,
             };
         }
     }
-    // --- СЦЕНАРИЙ 2: ЕЖЕГОДНАЯ ПРИВИВКА ---
-    else {
-        const annualVaccinations = allVaccinations.filter(v => v.vaccinationStage === 'revaccination');
-        const baseDate = annualVaccinations.length > 0
-            ? new Date(annualVaccinations[annualVaccinations.length - 1].date)
-            : new Date(firstVaccination.date);
 
-        const firstPossibleDueDate = addYears(baseDate, 1);
-        
-        let actualDueDate = new Date(firstPossibleDueDate.getTime());
-        while (isPast(actualDueDate) && !isTodayFns(actualDueDate)) {
-            actualDueDate = addYears(actualDueDate, 1);
+    // --- ШАГ 2: Расчет на основе прошлых прививок ---
+    const pastVaccinations = allVaccinations.filter(v => !isAfter(startOfDay(new Date(v.date)), today));
+    if (pastVaccinations.length === 0) return { status: null, dueDate: null, isOverdue: false, message: "" };
+
+    const firstVaccination = pastVaccinations.find(v => v.vaccinationStage === 'first');
+    const secondVaccination = pastVaccinations.find(v => v.vaccinationStage === 'second');
+    const lastAnnualVaccination = pastVaccinations.filter(v => v.vaccinationStage === 'revaccination').pop();
+
+    let dueDate: Date | null = null;
+    let messageType: 'revaccination' | 'annual' | null = null;
+
+    // **ИСПРАВЛЕННАЯ ЛОГИКА ПРИОРИТЕТОВ**
+    // 1. Если есть ежегодные, отталкиваемся от последней из них.
+    if (lastAnnualVaccination) {
+        dueDate = addYears(new Date(lastAnnualVaccination.date), 1);
+        messageType = 'annual';
+    } 
+    // 2. Если ежегодных нет, но есть первая, проверяем нужну ли вторая или первая ежегодная.
+    else if (firstVaccination) {
+        if (!secondVaccination) {
+            // Нужна вторая
+            dueDate = addDays(new Date(firstVaccination.date), 28);
+            messageType = 'revaccination';
+        } else {
+            // Нужна первая ежегодная (отсчет от первой)
+            dueDate = addYears(new Date(firstVaccination.date), 1);
+            messageType = 'annual';
         }
+    }
 
-        const isTrulyOverdue = isPast(firstPossibleDueDate) && !isTodayFns(firstPossibleDueDate);
-        const daysUntil = differenceInDays(actualDueDate, now);
+    // --- Расчет статуса для вычисленной даты ---
+    if (dueDate) {
+        const isOverdue = isPast(dueDate) && !isTodayFns(dueDate);
+        const daysUntil = differenceInDays(dueDate, today);
 
-        if (isTrulyOverdue || (daysUntil >= 0 && daysUntil <= 14)) {
-            // ИЗМЕНЕНИЕ: Динамическое формирование сообщения
-            const message = `${isTrulyOverdue ? 'Требовалась' : 'Требуется'} ежегодная вакцинация`;
+        if (isOverdue || (daysUntil >= 0 && daysUntil <= 7)) {
+            const messageVerb = isOverdue ? 'Требовалась' : 'Требуется';
+            const messageNoun = messageType === 'revaccination' ? 'ревакцинация' : 'ежегодная вакцинация';
+            const message = `${messageVerb} ${messageNoun}`;
+            
             return {
-                status: isTrulyOverdue ? 'overdue' : 'upcoming',
-                dueDate: actualDueDate,
-                isOverdue: isTrulyOverdue,
-                message,
+                status: isOverdue ? 'overdue' : 'upcoming', dueDate, isOverdue, message,
             };
         }
     }

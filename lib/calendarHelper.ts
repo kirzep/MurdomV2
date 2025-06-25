@@ -1,6 +1,6 @@
 // lib/calendarHelper.ts
-import { Cat, TreatmentType } from '@/types';
-import { addMonths, addYears, isPast, isToday, differenceInDays } from 'date-fns';
+import { Cat, Treatment, TreatmentType } from '@/types';
+import { addDays, addYears, isPast, isToday, differenceInDays, startOfDay, isAfter, isSameDay } from 'date-fns';
 
 export interface CalendarEvent {
   catId: string;
@@ -22,14 +22,15 @@ const STAGE_DETAILS = {
 
 export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
   const events: CalendarEvent[] = [];
-  const now = new Date();
+  const today = startOfDay(new Date());
 
   cats.forEach(cat => {
-    const vaccinations = (cat.treatments ?? [])
+    const allVaccinations = (cat.treatments ?? [])
       .filter(t => t.type === TreatmentType.VACCINATION && t.vaccinationStage)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    vaccinations.forEach(v => {
+    // 1. Добавляем все реальные записи в календарь
+    allVaccinations.forEach(v => {
       const stage = (v.vaccinationStage === 'revaccination' ? 'annual' : v.vaccinationStage) as 'first' | 'second' | 'annual';
       events.push({
         catId: cat.id,
@@ -39,59 +40,58 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
         stage: stage,
         stageText: STAGE_DETAILS[stage].text,
         isProjected: false,
-        isOverdue: false,
-        isUpcoming: false,
+        isOverdue: isPast(new Date(v.date)) && !isToday(new Date(v.date)),
+        isUpcoming: differenceInDays(new Date(v.date), today) <= 7 && !isPast(new Date(v.date)),
       });
     });
 
-    const firstVaccination = vaccinations.find(v => v.vaccinationStage === 'first');
-    if (!firstVaccination) return;
-
-    const secondVaccination = vaccinations.find(v => v.vaccinationStage === 'second');
+    // 2. Прогнозируем следующее событие на основе прошлых
+    const pastVaccinations = allVaccinations.filter(v => !isAfter(startOfDay(new Date(v.date)), today));
+    
+    const firstVaccination = pastVaccinations.find(v => v.vaccinationStage === 'first');
+    const secondVaccination = pastVaccinations.find(v => v.vaccinationStage === 'second');
+    const lastAnnualVaccination = pastVaccinations.filter(v => v.vaccinationStage === 'revaccination').pop();
     
     let projectedDate: Date | null = null;
     let projectedStage: 'second' | 'annual' | null = null;
-    let isTrulyOverdue = false; // Дополнительная переменная для статуса
 
-    // Сценарий 1: Прогнозируем вторую прививку
-    if (!secondVaccination) {
-      projectedDate = addMonths(new Date(firstVaccination.date), 1);
-      projectedStage = 'second';
-      isTrulyOverdue = isPast(projectedDate) && !isToday(projectedDate);
-    } 
-    // Сценарий 2: Прогнозируем ежегодную
-    else {
-      const annualVaccinations = vaccinations.filter(v => v.vaccinationStage === 'revaccination');
-      const baseDate = annualVaccinations.length > 0
-          ? new Date(annualVaccinations[annualVaccinations.length - 1].date)
-          : new Date(firstVaccination.date);
-
-      const firstPossibleDueDate = addYears(baseDate, 1);
-      let actualDueDate = new Date(firstPossibleDueDate.getTime());
-      while (isPast(actualDueDate) && !isToday(actualDueDate)) {
-        actualDueDate = addYears(actualDueDate, 1);
-      }
-      
-      projectedDate = actualDueDate;
-      projectedStage = 'annual';
-      isTrulyOverdue = isPast(firstPossibleDueDate) && !isToday(firstPossibleDueDate);
+    if (lastAnnualVaccination) {
+        projectedDate = addYears(new Date(lastAnnualVaccination.date), 1);
+        projectedStage = 'annual';
+    } else if (firstVaccination) {
+        if (!secondVaccination) {
+            projectedDate = addDays(new Date(firstVaccination.date), 28);
+            projectedStage = 'second';
+        } else {
+            projectedDate = addYears(new Date(firstVaccination.date), 1);
+            projectedStage = 'annual';
+        }
     }
 
+    // Добавляем спрогнозированное событие, только если оно еще не "закрыто" реальной записью
     if (projectedDate && projectedStage) {
-        const daysUntil = differenceInDays(projectedDate, now);
-        const isUpcoming = !isTrulyOverdue && daysUntil >= 0 && daysUntil <= 14;
+        const hasMatchingRealEvent = allVaccinations.some(v => 
+            v.vaccinationStage === projectedStage && 
+            isSameDay(new Date(v.date), projectedDate)
+        );
 
-        events.push({
-            catId: cat.id,
-            catName: cat.name,
-            catAvatarUrl: cat.avatarUrl,
-            date: projectedDate,
-            stage: projectedStage,
-            stageText: STAGE_DETAILS[projectedStage].text,
-            isProjected: true,
-            isOverdue: isTrulyOverdue,
-            isUpcoming,
-        });
+        if (!hasMatchingRealEvent) {
+             const isOverdue = isPast(projectedDate) && !isToday(projectedDate);
+             const daysUntil = differenceInDays(projectedDate, today);
+             const isUpcoming = !isOverdue && daysUntil >= 0 && daysUntil <= 7;
+    
+            events.push({
+                catId: cat.id,
+                catName: cat.name,
+                catAvatarUrl: cat.avatarUrl,
+                date: projectedDate,
+                stage: projectedStage,
+                stageText: STAGE_DETAILS[projectedStage].text,
+                isProjected: true,
+                isOverdue,
+                isUpcoming,
+            });
+        }
     }
   });
 

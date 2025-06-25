@@ -45,13 +45,17 @@ const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ cat, canEdit, onA
 
             if (t.type === TreatmentType.VACCINATION) {
                 if (t.vaccinationStage === 'first') {
-                    displayName = 'Первая вакцинация';
+                    displayName = 'Первичная вакцинация';
                     Icon = Syringe;
                     iconColor = 'text-blue-500';
                 } else if (t.vaccinationStage === 'second') {
                     displayName = 'Ревакцинация';
                     Icon = CheckCircle2;
                     iconColor = 'text-emerald-500';
+                } else if (t.vaccinationStage === 'revaccination') {
+                    displayName = 'Ежегодная вакцинация';
+                    Icon = CheckCircle2;
+                    iconColor = 'text-purple-500';
                 }
             }
             

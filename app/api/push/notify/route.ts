@@ -2,8 +2,9 @@
 import { NextResponse } from 'next/server';
 import webPush from 'web-push';
 import prisma from '@/lib/prisma';
-import { addYears, addDays, subDays, isWithinInterval, isPast, isToday as isTodayFns } from 'date-fns';
-import { Treatment, TreatmentType } from '@prisma/client';
+import { getRevaccinationStatus } from '@/lib/revaccinationHelper';
+// ИСПРАВЛЕНИЕ: Добавляем импорт Treatment для получения типа vaccinationStage
+import { Cat, Role as AppRole, Treatment as AppTreatment, TreatmentType as AppTreatmentType } from '@/types'; 
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT) {
     webPush.setVapidDetails(
@@ -16,64 +17,85 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env
 }
 
 async function findAndSendNotifications() {
-    const cats = await prisma.cat.findMany({
-        include: { treatments: true, creator: true }
+    const catsFromDb = await prisma.cat.findMany({
+        include: { 
+            treatments: true, 
+            creator: true 
+        }
     });
 
-    const notificationsToSend = new Map<string, { catName: string; dueDate: Date }[]>();
-    const now = new Date();
-    const checkStartDate = subDays(now, 30); 
-    const checkEndDate = addDays(now, 14);
+    const notificationsToSend = new Map<string, { catName: string; dueDate: Date; message: string }[]>();
+    
+    for (const catDataFromDb of catsFromDb) {
+        
+        const appCat: Cat = {
+            ...catDataFromDb,
+            arrivalDate: catDataFromDb.arrivalDate?.toISOString() ?? null,
+            createdAt: catDataFromDb.createdAt.toISOString(),
+            updatedAt: catDataFromDb.updatedAt.toISOString(),
+            creator: catDataFromDb.creator ? {
+                ...catDataFromDb.creator,
+                role: catDataFromDb.creator.role as AppRole,
+            } : null,
+            treatments: catDataFromDb.treatments.map(t => ({
+                ...t,
+                date: t.date.toISOString(),
+                createdAt: t.createdAt.toISOString(),
+                type: t.type as AppTreatmentType,
+                // **ИСПРАВЛЕНИЕ:** Явно приводим тип для vaccinationStage
+                vaccinationStage: t.vaccinationStage as AppTreatment['vaccinationStage'],
+            }))
+        };
+        
+        const { status, dueDate, message } = getRevaccinationStatus(appCat);
 
-    for (const cat of cats) {
-        const allVaccinations = (cat.treatments || [])
-            .filter((t: Treatment) => t.type === TreatmentType.VACCINATION)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-        if (allVaccinations.length > 0) {
-            const lastVaccinationDate = new Date(allVaccinations[0].date);
-            const revaccinationDueDate = addYears(lastVaccinationDate, 1);
-            
-            if (isWithinInterval(revaccinationDueDate, { start: checkStartDate, end: checkEndDate })) {
-                const userId = cat.creatorId;
-                if (userId) {
-                    if (!notificationsToSend.has(userId)) {
-                        notificationsToSend.set(userId, []);
-                    }
-                    notificationsToSend.get(userId)!.push({
-                        catName: cat.name,
-                        dueDate: revaccinationDueDate
-                    });
+        if (status && dueDate) {
+            const userId = appCat.creatorId;
+            if (userId) {
+                if (!notificationsToSend.has(userId)) {
+                    notificationsToSend.set(userId, []);
                 }
+                notificationsToSend.get(userId)!.push({
+                    catName: appCat.name,
+                    dueDate: dueDate,
+                    message: message
+                });
             }
         }
     }
     
     let sentCount = 0;
     
-    // --- ИСПРАВЛЕНИЕ: Оборачиваем итератор в Array.from() для совместимости с ES5 ---
     for (const [userId, alerts] of Array.from(notificationsToSend.entries())) {
         const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
-        const payload = JSON.stringify({
-            title: 'Напоминание о ревакцинации!',
-            body: `Скоро ревакцинация у: ${alerts.map((a: {catName: string}) => a.catName).join(', ')}.`,
-            icon: '/icons/icon-192x192.png',
-            data: { url: '/dashboard' }
-        });
+        
+        const groupedByMessage = alerts.reduce((acc, alert) => {
+            (acc[alert.message] = acc[alert.message] || []).push(alert.catName);
+            return acc;
+        }, {} as Record<string, string[]>);
 
-        for (const sub of subscriptions) {
-            try {
-                const subscriptionObject = {
-                    endpoint: sub.endpoint,
-                    keys: { p256dh: sub.p256dh, auth: sub.auth }
-                };
-                await webPush.sendNotification(subscriptionObject, payload);
-                sentCount++;
-            } catch (error: any) {
-                if (error.statusCode === 410 || error.statusCode === 404) {
-                    await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch((e: any) => console.error(e));
-                } else {
-                    console.error('Failed to send notification:', error);
+        for (const [message, catNames] of Object.entries(groupedByMessage)) {
+            const payload = JSON.stringify({
+                title: 'Напоминание о вакцинации!',
+                body: `${message}: ${catNames.join(', ')}.`,
+                icon: '/icons/icon-192x192.png',
+                data: { url: '/dashboard' }
+            });
+
+            for (const sub of subscriptions) {
+                try {
+                    const subscriptionObject = {
+                        endpoint: sub.endpoint,
+                        keys: { p256dh: sub.p256dh, auth: sub.auth }
+                    };
+                    await webPush.sendNotification(subscriptionObject, payload);
+                    sentCount++;
+                } catch (error: any) {
+                    if (error.statusCode === 410 || error.statusCode === 404) {
+                        await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch((e: any) => console.error(e));
+                    } else {
+                        console.error('Failed to send notification:', error);
+                    }
                 }
             }
         }
