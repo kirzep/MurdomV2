@@ -2,14 +2,14 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Cat, Role } from '@/types';
 import CatCard from './CatCard';
 import Spinner from '../components/ui/Spinner';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Search, Plus, LogOut, CatIcon as FelineIcon, Menu, MessageCircle, X, Trash2 } from 'lucide-react';
+import { Search, Plus, Menu, MessageCircle, X, Trash2, Sparkles, CatIcon as FelineIcon } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -20,6 +20,7 @@ import PatchNotesModal from '../components/PatchNotesModal';
 import RevaccinationAlerts from './RevaccinationAlerts';
 import RevaccinationModal from './RevaccinationModal';
 import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
+import MurdomAiWidget from '../components/AiAssistantWidget'; // Импортируем нового ассистента
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -49,11 +50,13 @@ export default function DashboardPage() {
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false); // Состояние для MurdomAI
   const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   
   const canEdit = session?.user.role !== Role.VOLUNTEER;
+  const canUseAiAssistant = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON || session?.user.role === Role.DEVELOPER;
     
   const filteredCats = useMemo(() => {
     if (!searchQuery) return cats;
@@ -98,7 +101,7 @@ export default function DashboardPage() {
   const fetchCats = useCallback(async () => {
     setIsDataLoading(true);
     try {
-      const response = await fetch(`/api/cats`);
+      const response = await fetch(`/api/cats?q=${debouncedSearchQuery}`);
       const data = await response.json();
       setCats(data);
     } catch (error) {
@@ -106,7 +109,7 @@ export default function DashboardPage() {
     } finally {
       setIsDataLoading(false);
     }
-  }, []);
+  }, [debouncedSearchQuery]);
   
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -175,6 +178,7 @@ export default function DashboardPage() {
       <SidePanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
       {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
       <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <MurdomAiWidget isOpen={isAiAssistantOpen} onClose={() => setIsAiAssistantOpen(false)} />
       <RevaccinationModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} alerts={vaccinationAlerts} />
       
       {!showWelcomeScreen && (
@@ -198,7 +202,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg">
                         <Input 
-                            placeholder="Поиск..."
+                            placeholder="Поиск по кличке..."
                             icon={<Search size={22}/>}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -222,8 +226,13 @@ export default function DashboardPage() {
             {isDataLoading ? (
                <div className="h-64 flex items-center justify-center"><Spinner /></div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredCats.map(cat => (
+                <motion.div 
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                    {filteredCats.length > 0 ? filteredCats.map(cat => (
                         <CatCard 
                             key={cat.id} 
                             cat={cat}
@@ -232,15 +241,29 @@ export default function DashboardPage() {
                             onToggleSelection={handleToggleSelection}
                             onStartSelectionMode={handleStartSelectionMode}
                         />
-                    ))}
-                </div>
+                    )) : (
+                        <div className="col-span-full text-center py-16 text-gray-500">
+                            <p className="font-semibold text-lg">Кошки не найдены</p>
+                            <p>Попробуйте изменить поисковый запрос или добавьте новую кошку.</p>
+                        </div>
+                    )}
+                </motion.div>
             )}
           </main>
           
-          <div className="fixed bottom-6 right-6 z-40">
-              <Button className="h-16 w-16 rounded-full shadow-lg" onClick={() => setIsChatOpen(true)}>
-                  <MessageCircle size={32} />
-              </Button>
+          <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-4">
+                {canUseAiAssistant && (
+                    <Button 
+                        className="h-16 w-16 rounded-full shadow-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white" 
+                        onClick={() => setIsAiAssistantOpen(true)}
+                        aria-label="Открыть ИИ-ассистента"
+                    >
+                        <Sparkles size={32} />
+                    </Button>
+                )}
+                <Button className="h-16 w-16 rounded-full shadow-lg" onClick={() => setIsChatOpen(true)} aria-label="Открыть чат">
+                    <MessageCircle size={32} />
+                </Button>
           </div>
 
             <AnimatePresence>
@@ -256,9 +279,8 @@ export default function DashboardPage() {
                             <Button onClick={handleCancelSelection} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
                                 <X size={24}/>
                             </Button>
-                            <span className="font-semibold">Выбрано: {selectedCats.length}</span>
+                            <span className="font-semibold text-sm">Выбрано: {selectedCats.length}</span>
                             <Button onClick={handleDeleteSelected} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
-                                {/* ИЗМЕНЕНИЕ: Увеличен размер иконки */}
                                 <Trash2 size={24} className="sm:mr-2"/>
                                 <span className="hidden sm:inline">Удалить</span>
                             </Button>
