@@ -8,7 +8,6 @@ import Button from './ui/Button';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 
-// --- ИНТЕРФЕЙСЫ И ТИПЫ ---
 interface Message {
     id: number;
     role: 'user' | 'assistant';
@@ -20,7 +19,6 @@ interface AiAssistantWidgetProps {
   onClose: () => void;
 }
 
-// --- КОМПОНЕНТ ЛАЙТБОКСА ---
 const Lightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => {
     const handleDownload = async () => {
         try {
@@ -67,8 +65,6 @@ const Lightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: ()
     );
 };
 
-
-// --- ОСНОВНОЙ КОМПОНЕНТ ---
 export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -82,8 +78,7 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
 
     useEffect(() => {
         if (isOpen && messages.length === 0) {
-            // --- НОВОЕ: Приветствие от Мурдомыча ---
-            setMessages([{ id: Date.now(), role: 'assistant', content: 'Привет, я Мурдомыч. Чем могу тебе помочь?' }]);
+            setMessages([{ id: Date.now(), role: 'assistant', content: 'Привет! Я Мурдомыч. Чего тебе?' }]);
         }
     }, [isOpen, messages.length]);
 
@@ -96,8 +91,13 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
         if (!input.trim() || isLoading) return;
 
         const userMessage: Message = { id: Date.now(), role: 'user', content: input };
-        const assistantMessageId = Date.now() + 1;
         
+        // --- ИСПРАВЛЕНИЕ: Готовим историю ПЕРЕД обновлением состояния ---
+        const historyToSend = [...messages, userMessage]
+            .slice(-11, -1) // Берем до 10 последних сообщений, не включая текущее
+            .map(({ role, content }) => ({ role, content })); // Форматируем для API
+
+        const assistantMessageId = Date.now() + 1;
         setMessages(prev => [...prev, userMessage, { id: assistantMessageId, role: 'assistant', content: '' }]);
         setInput('');
         setIsLoading(true);
@@ -106,7 +106,8 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
             const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userQuery: input }),
+                // --- ИСПРАВЛЕНИЕ: Отправляем историю на сервер ---
+                body: JSON.stringify({ userQuery: input, history: historyToSend }),
             });
 
             if (!response.ok || !response.body) {
@@ -195,7 +196,6 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
                     className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[450px] sm:max-h-[70vh] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-50 border border-brand-border"
                 >
                     <header className="flex items-center justify-between p-4 border-b border-brand-border flex-shrink-0">
-                        {/* --- НОВОЕ: Заголовок с именем Мурдомыч --- */}
                         <h3 className="text-xl font-bold text-brand-primary flex items-center gap-2">
                             <Sparkles /> Ассистент Мурдомыч
                         </h3>

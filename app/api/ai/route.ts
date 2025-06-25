@@ -7,7 +7,7 @@ import { Role } from '@prisma/client';
 
 const FETCH_TIMEOUT = 30000;
 
-// --- Промпт для первого, анализирующего вызова (без изменений) ---
+// --- ОБНОВЛЕННЫЙ ПРОМПТ ДЛЯ АНАЛИЗА ---
 const ANALYSIS_SYSTEM_PROMPT = `
 Ты — умный маршрутизатор запросов. Твоя задача - проанализировать запрос пользователя и определить, какой тип информации из базы данных ему нужен.
 Ответь ТОЛЬКО в формате JSON.
@@ -16,43 +16,19 @@ const ANALYSIS_SYSTEM_PROMPT = `
 1.  Если пользователь спрашивает об ОДНОЙ конкретной кошке, ответь:
     {"query_type": "specific_cat", "cat_name": "ИмяКошки"}
 
-2.  Если пользователь просит список кошек по какому-либо критерию (например, "все кошки", "кошки с прививками", "кошки без документов"), ответь:
+2.  Если пользователь просит список кошек по какому-либо критерию (например, "все кошки", "кошки с прививками"), ответь:
     {"query_type": "list_cats"}
 
-3.  Если вопрос общий и не требует данных о кошках (например, "привет, как дела?"), ответь:
+3.  Если вопрос касается общих правил вакцинации, но не конкретных кошек, ответь:
+    {"query_type": "vaccination_rules"}
+
+4.  Если вопрос общий и не требует данных (например, "привет, как дела?"), ответь:
     {"query_type": "general"}
 `;
 
-// --- НОВАЯ ФУНКЦИЯ: Расчет расстояния Левенштейна для нечеткого поиска ---
-function levenshteinDistance(a: string, b: string): number {
-    const aLower = a.toLowerCase();
-    const bLower = b.toLowerCase();
-    const matrix = Array(bLower.length + 1).fill(null).map(() => Array(aLower.length + 1).fill(null));
-
-    for (let i = 0; i <= aLower.length; i += 1) {
-        matrix[0][i] = i;
-    }
-    for (let j = 0; j <= bLower.length; j += 1) {
-        matrix[j][0] = j;
-    }
-
-    for (let j = 1; j <= bLower.length; j += 1) {
-        for (let i = 1; i <= aLower.length; i += 1) {
-            const cost = aLower[i - 1] === bLower[j - 1] ? 0 : 1;
-            matrix[j][i] = Math.min(
-                matrix[j][i - 1] + 1,      // deletion
-                matrix[j - 1][i] + 1,      // insertion
-                matrix[j - 1][i - 1] + cost // substitution
-            );
-        }
-    }
-    return matrix[bLower.length][aLower.length];
-}
-
-// --- ОБНОВЛЕННАЯ ФУНКЦИЯ: Теперь использует нечеткий поиск ---
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ ПОЛУЧЕНИЯ ДАННЫХ ---
 async function getRelevantDatabaseContext(analysis: { query_type: string; cat_name?: string }) {
     console.log('[DEBUG] Analysis result:', analysis);
-
     if (analysis.query_type === 'specific_cat' && analysis.cat_name) {
         const allCatsSimple = await prisma.cat.findMany({ select: { id: true, name: true } });
         
@@ -67,21 +43,20 @@ async function getRelevantDatabaseContext(analysis: { query_type: string; cat_na
             }
         }
         
-        // Порог совпадения: если имя отличается более чем на 3 символа, считаем что совпадений нет
         if (bestMatch && minDistance <= 3) {
-            console.log(`[DEBUG] Fuzzy match found: "${analysis.cat_name}" -> "${bestMatch.name}" with distance ${minDistance}`);
+            console.log(`[DEBUG] Fuzzy match found: "${analysis.cat_name}" -> "${bestMatch.name}"`);
             const fullCatData = await prisma.cat.findUnique({
                 where: { id: bestMatch.id },
                 include: { treatments: true, documents: true },
             });
             return fullCatData ? JSON.stringify({ cats: [fullCatData] }, null, 2) : JSON.stringify({ cats: [] }, null, 2);
         } else {
-             console.log(`[DEBUG] No close match found for "${analysis.cat_name}". Best attempt: "${bestMatch?.name}" with distance ${minDistance}`);
-             return JSON.stringify({ cats: [] }, null, 2); // Возвращаем пустой результат, если совпадение плохое
+             return JSON.stringify({ cats: [], not_found: analysis.cat_name }, null, 2); 
         }
     }
 
-    if (analysis.query_type === 'list_cats') {
+    // Для списков и правил вакцинации загружаем всех
+    if (analysis.query_type === 'list_cats' || analysis.query_type === 'vaccination_rules') {
         const cats = await prisma.cat.findMany({
             include: { treatments: true, documents: true },
         });
@@ -91,6 +66,20 @@ async function getRelevantDatabaseContext(analysis: { query_type: string; cat_na
     return JSON.stringify({});
 }
 
+function levenshteinDistance(a: string, b: string): number {
+    const aLower = a.toLowerCase();
+    const bLower = b.toLowerCase();
+    const matrix = Array(bLower.length + 1).fill(null).map(() => Array(aLower.length + 1).fill(null));
+    for (let i = 0; i <= aLower.length; i += 1) matrix[0][i] = i;
+    for (let j = 0; j <= bLower.length; j += 1) matrix[j][0] = j;
+    for (let j = 1; j <= bLower.length; j += 1) {
+        for (let i = 1; i <= aLower.length; i += 1) {
+            const cost = aLower[i - 1] === bLower[j - 1] ? 0 : 1;
+            matrix[j][i] = Math.min(matrix[j][i - 1] + 1, matrix[j - 1][i] + 1, matrix[j - 1][i - 1] + cost);
+        }
+    }
+    return matrix[bLower.length][aLower.length];
+}
 
 export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
@@ -100,7 +89,7 @@ export async function POST(request: Request) {
         return new Response('Forbidden', { status: 403 });
     }
     
-    const userName = session.user?.name || 'друг';
+    const userName = session.user?.name || 'дружище';
     const apiKey = process.env.YANDEX_GPT_API_KEY;
     const folderId = process.env.YANDEX_CLOUD_FOLDER_ID;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -119,7 +108,6 @@ export async function POST(request: Request) {
         const { userQuery, history } = body; 
         if (!userQuery) return new Response('Query is required', { status: 400 });
 
-        // --- ШАГ 1: АНАЛИЗ ЗАПРОСА ---
         const analysisResponse = await fetch(yandexApiUrl, {
             method: 'POST',
             headers: yandexApiHeaders,
@@ -142,10 +130,7 @@ export async function POST(request: Request) {
             console.error("Failed to parse analysis JSON, falling back to general query.", e);
         }
 
-        // --- ШАГ 2: ПОЛУЧЕНИЕ ТОЛЬКО НУЖНЫХ ДАННЫХ ---
         const dbContext = await getRelevantDatabaseContext(analysisResult);
-        
-        // --- ШАГ 3: ГЕНЕРАЦИЯ ОТВЕТА С КОНТЕКСТОМ ДИАЛОГА ---
         
         const conversationHistory = (history || []).map((msg: { role: string, content: string }) => ({
             role: msg.role,
@@ -155,19 +140,23 @@ export async function POST(request: Request) {
         const answerMessages = [
             {
                 role: 'system',
-                text: `Твой образ — Мурдомыч, самый харизматичный и мудрый доктор-кот в ветеринарном мире. Ты главный врач в приюте "МурДом", и к тебе за консультацией обратился твой коллега, ${userName}.
-Обращайся к нему уважительно, но с легкой иронией и мудростью, как опытный наставник к стажеру.
-Ты отвечаешь на основе данных из <DATA>${dbContext}</DATA> и контекста предыдущего диалога.
+                // --- ОБНОВЛЕННЫЙ ПРОМПТ С "ЗОЛОТЫМ ПРАВИЛОМ" ---
+                text: `Твой образ — Мурдомыч, добродушный и очень харизматичный усатый дядька, который работает в приюте "МурДом". Ты обожаешь кошек и любишь пошутить. К тебе обращается твой коллега, ${userName}.
 
-**Правила форматирования:**
--   Используй заголовки (##), списки (*), жирный шрифт (**) для структурирования ответа.
--   Если вставляешь ссылку на изображение, используй синтаксис Markdown: ![описание](${appUrl}/путь/к/файлу.webp).
+**Золотое правило Мурдомыча:** Ты всегда должен четко разделять факты из базы данных и свои выдумки.
+1.  **Факты:** Всю информацию о кошках (имена, даты, процедуры) ты берешь **исключительно** из блока <DATA>${dbContext}</DATA>. Если в данных чего-то нет, ты честно говоришь: "Так, в моих бумагах этого не записано, дружище" или что-то в этом духе. Никогда не придумывай факты о кошках!
+2.  **Юмор и выдумки:** Твои шутки, истории, забавные словечки и ворчание — это твое личное мнение. Ты можешь подавать их как угодно, чтобы поднять настроение, но никогда не смешивай их с фактическими данными.
 
-**База знаний (используй, ТОЛЬКО если вопрос касается вакцинации):**
--   Первичная вакцинация ('first') - это первая прививка.
--   Ревакцинация ('second') делается ровно через 28 дней после первичной.
--   Ежегодная вакцинация ('revaccination') делается через год после ПЕРВИЧНОЙ, если это первая ежегодная.
--   Все последующие ежегодные вакцинации делаются через год после ПРЕДЫДУЩЕЙ ежегодной.
+**Правила оформления:**
+-   Выделяй важные моменты **жирным**.
+-   Списки оформляй с помощью звездочек (*).
+-   Заголовки делай с помощью решеток (##).
+-   Изображения вставляй как Markdown: ![описание](${appUrl}/путь/к/файлу.webp).
+
+**Шпаргалка по прививкам (используй, только если спросят про медицину):**
+-   Первичная вакцинация ('first'): первая прививка.
+-   Ревакцинация ('second'): через 28 дней после первичной.
+-   Ежегодная вакцинация ('revaccination'): через год после ПЕРВОЙ, если это первая ежегодная, или через год после ПРЕДЫДУЩЕЙ ежегодной.
 
 Текущая дата: ${new Date().toLocaleDateString('ru-RU')}.`
             },
@@ -186,7 +175,7 @@ export async function POST(request: Request) {
             headers: yandexApiHeaders,
             body: JSON.stringify({
                 modelUri: modelUri,
-                completionOptions: { stream: true, temperature: 0.5, maxTokens: '2000' },
+                completionOptions: { stream: true, temperature: 0.7, maxTokens: '2000' },
                 messages: answerMessages,
             }),
             signal: controller.signal,
