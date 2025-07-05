@@ -10,12 +10,13 @@ import PawsBackground from './components/PawsBackground'
 
 const inter = Inter({ subsets: ['latin'] })
 
-const appVersion = "2.1.0";
+// --- ИЗМЕНЕНИЕ: Увеличиваем версию, чтобы обновить кеш на устройствах ---
+const appVersion = "2.2.0";
 
 export const metadata: Metadata = {
   title: 'Архив Кошек',
   description: 'Веб-приложение для управления записями о кошках в приюте.',
-  manifest: `/manifest.json?v=${appVersion}`,
+  manifest: `/manifest.json?v=${appVersion}`, // Добавляем версию
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -44,8 +45,9 @@ export const metadata: Metadata = {
   },
 }
 
+// --- ИЗМЕНЕНИЕ: Обновляем основной цвет для UI браузера ---
 export const viewport: Viewport = {
-  themeColor: '#818cf8',
+  themeColor: '#5D001E',
 }
 
 export default function RootLayout({
@@ -57,8 +59,7 @@ export default function RootLayout({
     <html lang="ru">
       <body>
         <PawsBackground />
-        {/* --- ИЗМЕНЕНИЕ: Создаем обертку для всего контента --- */}
-        <div className="relative z-10">
+        <div className="relative z-10 content-wrapper">
             <ConnectionStatusBanner />
             <NextAuthProvider>
               <AppShell>{children}</AppShell>

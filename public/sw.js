@@ -1,7 +1,7 @@
 // public/sw.js
 
 // ИЗМЕНЕНИЕ: Увеличиваем версию до v16, чтобы запустить обновление
-const CACHE_VERSION = 'v18';
+const CACHE_VERSION = 'v20';
 const CACHE_NAME = `cat-archive-shell-${CACHE_VERSION}`;
 
 const FILES_TO_CACHE = [
