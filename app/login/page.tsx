@@ -48,7 +48,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-main from-indigo-50 via-purple-50 to-pink-50">
+    // ИЗМЕНЕНИЕ: Обновляем градиент фона
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-brand-primary-light/30 via-brand-background to-brand-surface">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
