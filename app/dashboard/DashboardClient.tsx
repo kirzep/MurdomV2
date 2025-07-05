@@ -8,7 +8,8 @@ import { Cat, Role } from '@/types';
 import CatCard from './CatCard';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Search, Plus, X, Trash2, CatIcon as FelineIcon } from 'lucide-react';
+// --- ИЗМЕНЕНИЕ: Убираем FelineIcon отсюда ---
+import { Search, Plus, X, Trash2 } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -159,7 +160,8 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
             <div className="container mx-auto px-4 py-3">
                 <div className="flex items-center justify-between gap-4">
                     <h1 className="text-xl md:text-2xl font-bold text-brand-primary flex items-center gap-2">
-                      <FelineIcon size={28}/>
+                      {/* --- ИЗМЕНЕНИЕ: Заменяем иконку на изображение --- */}
+                      <img src="/icons/android-chrome-512x512.png" alt="Логотип" className="h-7 w-7" />
                       <span className="hidden sm:inline">Архив</span>
                     </h1>
                     <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg">
@@ -199,7 +201,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
                         isSelectionMode={isSelectionMode}
                         onToggleSelection={handleToggleSelection}
                         onStartSelectionMode={handleStartSelectionMode}
-                        // Больше не передаем иконки сюда
                     />
                 )) : (
                     <div className="col-span-full text-center py-16 text-gray-500">

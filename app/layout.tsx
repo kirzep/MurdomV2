@@ -6,16 +6,16 @@ import NextAuthProvider from './components/NextAuthProvider'
 import PWAInstaller from './components/PWAInstaller'
 import ConnectionStatusBanner from './components/ConnectionStatusBanner'
 import AppShell from './components/AppShell'
+import PawsBackground from './components/PawsBackground'
 
 const inter = Inter({ subsets: ['latin'] })
 
-// ИЗМЕНЕНИЕ: Добавляем версию к манифесту
-const appVersion = "2.1.0"; // Можете менять эту версию при будущих обновлениях
+const appVersion = "2.1.0";
 
 export const metadata: Metadata = {
   title: 'Архив Кошек',
   description: 'Веб-приложение для управления записями о кошках в приюте.',
-  manifest: `/manifest.json?v=${appVersion}`, // Добавляем версию
+  manifest: `/manifest.json?v=${appVersion}`,
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -56,11 +56,15 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
-        <ConnectionStatusBanner />
-        <NextAuthProvider>
-          <AppShell>{children}</AppShell>
-        </NextAuthProvider>
-        <PWAInstaller />
+        <PawsBackground />
+        {/* --- ИЗМЕНЕНИЕ: Создаем обертку для всего контента --- */}
+        <div className="relative z-10">
+            <ConnectionStatusBanner />
+            <NextAuthProvider>
+              <AppShell>{children}</AppShell>
+            </NextAuthProvider>
+            <PWAInstaller />
+        </div>
       </body>
     </html>
   )

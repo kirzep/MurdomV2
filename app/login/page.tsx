@@ -26,7 +26,6 @@ export default function LoginPage() {
     }
   }, [status, router]);
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -48,7 +47,7 @@ export default function LoginPage() {
   }
 
   return (
-    // ИЗМЕНЕНИЕ: Обновляем градиент фона
+    // --- ИЗМЕНЕНИЕ: Обновлен градиент фона под новую тему ---
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-brand-primary-light/30 via-brand-background to-brand-surface">
       <motion.div
         initial={{ opacity: 0, y: -20 }}

@@ -5,9 +5,10 @@ import path from 'path';
 
 // ИЗМЕНЕНИЕ: Добавляем новую папку в список разрешенных
 const ALLOWED_FOLDERS = [
-  'dashboard_background_icons', 
+  'dashboard_background_icons',
   'loading_screen',
-  'dashboard_catcard_background_icons' // <--- ДОБАВЛЕНО
+  'dashboard_catcard_background_icons',
+  'background_paws' // <--- ДОБАВЛЕНО
 ];
 
 export async function GET(

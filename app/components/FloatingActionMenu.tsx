@@ -15,30 +15,27 @@ interface FloatingActionMenuProps {
 const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onChatClick, onAiClick, canUseAi }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Варианты анимации для контейнера меню
   const menuVariants = {
     closed: {
       transition: {
         staggerChildren: 0.05,
-        staggerDirection: -1, // Анимация закрытия в обратном порядке
+        staggerDirection: -1,
       },
     },
     open: {
       transition: {
         staggerChildren: 0.1,
-        delayChildren: 0.1, // Небольшая задержка перед появлением первого элемента
+        delayChildren: 0.1,
       },
     },
   };
 
-  // Варианты анимации для каждого элемента меню
   const itemVariants = {
     closed: { x: "110%", opacity: 0, transition: { duration: 0.2 } },
     open: { x: 0, opacity: 1, transition: { type: "spring", stiffness: 400, damping: 30 } },
   };
 
   return (
-    // ИЗМЕНЕНИЕ: Смещаем в правый нижний угол, над панелью навигации (h-16)
     <div className="fixed bottom-20 right-0 z-40 flex items-center">
       <AnimatePresence>
         {isOpen && (
@@ -47,28 +44,25 @@ const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onChatClick, on
             initial="closed"
             animate="open"
             exit="closed"
-            className="flex flex-col items-end gap-3 mr-3" // Уменьшаем отступы
+            className="flex flex-col items-end gap-3 mr-3"
           >
-            {/* Кнопка ИИ-Ассистента */}
             {canUseAi && (
               <motion.div variants={itemVariants} className="flex items-center gap-3">
                 <span className="bg-white/90 backdrop-blur-sm text-sm font-semibold px-3 py-1.5 rounded-full shadow-md text-brand-text-primary">ИИ-Ассистент</span>
                 <Button
                   onClick={() => { onAiClick(); setIsOpen(false); }}
-                  // ИЗМЕНЕНИЕ: Уменьшаем размер кнопки
-                  className="h-12 w-12 rounded-full shadow-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white"
+                  // --- ИЗМЕНЕНИЕ: Убираем градиент, используем основной цвет темы ---
+                  className="h-12 w-12 rounded-full shadow-lg bg-brand-primary text-white"
                   aria-label="Открыть ИИ-ассистента"
                 >
                   <Sparkles size={24} />
                 </Button>
               </motion.div>
             )}
-            {/* Кнопка Чата */}
             <motion.div variants={itemVariants} className="flex items-center gap-3">
               <span className="bg-white/90 backdrop-blur-sm text-sm font-semibold px-3 py-1.5 rounded-full shadow-md text-brand-text-primary">Общий чат</span>
               <Button
                 onClick={() => { onChatClick(); setIsOpen(false); }}
-                // ИЗМЕНЕНИЕ: Уменьшаем размер кнопки
                 className="h-12 w-12 rounded-full shadow-lg"
                 aria-label="Открыть чат"
               >
@@ -79,7 +73,6 @@ const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onChatClick, on
         )}
       </AnimatePresence>
 
-      {/* ИЗМЕНЕНИЕ: Уменьшаем размер кнопки-триггера */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-10 h-20 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-l-full flex items-center justify-center shadow-lg focus:outline-none transition-colors"

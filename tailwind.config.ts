@@ -10,24 +10,39 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // ИЗМЕНЕНИЕ: Заменяем светло-серый фон на приятный желтоватый
-        'brand-background': '#ffffff', // Очень светлый янтарный (Amber 50)
-        
-        'brand-surface': '#ffffff',    // Белый для карточек и модальных окон
-        'brand-border': '#e5e7eb',   // Нейтральная граница (Gray 200)
+        // --- НОВАЯ БОРДОВО-БЕЖЕВАЯ ПАЛИТРА ---
+        'brand-background': '#FFFBF7',    // Теплый, почти белый фон
+        'brand-surface': '#FFFFFF',       // Чистый белый для карточек
+        'brand-border': '#F2E8E4',      // Мягкий бежевый для границ
 
-        'brand-primary': '#38bdf8',       // Sky 400 - яркий, но не резкий голубой
-        'brand-primary-hover': '#0ea5e9', // Sky 500 для наведения
-        'brand-primary-light': '#f0f9ff', // Очень светлый Sky 50 для подложек
-        
-        'brand-secondary': '#e5e7eb',        // Gray 200
-        'brand-secondary-hover': '#d1d5db', // Gray 300 для наведения
+        // Основной цвет: глубокий бордовый
+        'brand-primary': '#5D001E',
+        'brand-primary-hover': '#82002B', // Немного светлее для наведения
+        'brand-primary-light': '#FBE9EE', // Очень светлый, нежно-розовый
 
-        'brand-accent': '#f87171',    // Мягкий красный (Red 400)
+        // Второстепенный цвет: нейтральный серый
+        'brand-secondary': '#F1F5F9',      // Светло-серый (Slate 100)
+        'brand-secondary-hover': '#E2E8F0', // Немного темнее (Slate 200)
+
+        // Акцентный (ошибки, удаление): насыщенный розовый
+        'brand-accent': '#E11D48',        // Rose 600
+        'brand-accent-hover': '#BE123C',  // Rose 700 для наведения
+        'brand-accent-text': '#881337',   // Темно-розовый текст (Rose 900)
+        'brand-accent-bg': '#FFE4E6',     // Светло-розовая подложка (Rose 50)
+
+        // Предупреждение: насыщенный янтарный
+        'brand-warning': '#F59E0B',       // Amber 500
+        'brand-warning-text': '#92400E',  // Темно-янтарный текст (Amber 800)
+        'brand-warning-bg': '#FFFBEB',    // Светло-янтарная подложка (Amber 50)
         
-        'brand-text-primary': '#1f2937', // Почти черный, но мягче (Gray 800)
-        'brand-text-secondary': '#6b7280', // Серый для второстепенного текста (Gray 500)
-        'brand-text-on-primary': '#ffffff', // Белый текст на основной кнопке
+        // Успех (для галочек): приглушенный зеленый
+        'brand-success': '#16A34A',      // Green 600
+        'brand-success-text': '#14532D', // Green 900
+
+        // Текст
+        'brand-text-primary': '#33181F', // Очень темный, почти черный с теплым оттенком
+        'brand-text-secondary': '#85686F',// Теплый серый для второстепенного текста
+        'brand-text-on-primary': '#FFFFFF',// Белый текст на основной кнопке
       },
     },
   },

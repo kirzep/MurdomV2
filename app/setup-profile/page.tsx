@@ -61,11 +61,9 @@ export default function SetupProfilePage() {
 
             if (!response.ok) throw new Error('Не удалось настроить профиль');
             
-            // ИСПРАВЛЕНИЕ: Вызываем update(), чтобы сессия обновилась
             await update();
             
             alert('Профиль успешно настроен! Добро пожаловать!');
-            // ИСПРАВЛЕНИЕ: Используем window.location для надежного редиректа
             window.location.href = '/dashboard';
 
         } catch (err) {
@@ -84,7 +82,8 @@ export default function SetupProfilePage() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-main from-indigo-50 via-purple-50 to-pink-50">
+        // --- ИЗМЕНЕНИЕ: Обновлен градиент фона под новую тему ---
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-brand-primary-light/30 via-brand-background to-brand-surface">
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -107,7 +106,6 @@ export default function SetupProfilePage() {
                             alt="Аватар"
                             className="w-24 h-24 rounded-full object-cover"
                         />
-                        {/* ИСПРАВЛЕНИЕ: Оборачиваем кнопку в label для лучшей совместимости на мобильных */}
                         <label htmlFor="avatar-upload" className="absolute -bottom-1 -right-1 w-8 h-8 bg-brand-primary text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-opacity-90 transition-all">
                             <Camera size={18} />
                         </label>

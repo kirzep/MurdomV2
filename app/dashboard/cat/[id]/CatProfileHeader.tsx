@@ -38,7 +38,6 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
 
   const ageString = getAge(cat.birthYear);
 
-  // --- ИСПРАВЛЕНИЕ ЛОГИКИ АВАТАРА ---
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   let avatarSrc: string;
   if (cat.avatarUrl) {
@@ -50,11 +49,10 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
   } else {
     avatarSrc = `https://placehold.co/128x128/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
   }
-  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
   const bannerClasses = alertInfo.status === 'overdue'
-    ? "bg-red-100 border-red-500 text-red-800"
-    : "bg-yellow-100 border-yellow-500 text-yellow-800";
+    ? "bg-brand-accent-bg border-brand-accent text-brand-accent-text"
+    : "bg-brand-warning-bg border-brand-warning text-brand-warning-text";
     
   return (
     <div className="space-y-4">

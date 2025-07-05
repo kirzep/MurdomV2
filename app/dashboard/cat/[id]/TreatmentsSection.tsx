@@ -1,3 +1,4 @@
+// app/dashboard/cat/[id]/TreatmentsSection.tsx
 "use client";
 
 import { Cat, Treatment, TreatmentType } from "@/types";
@@ -13,11 +14,12 @@ interface TreatmentsSectionProps {
   onDeleteClick: (treatmentId: string) => void;
 }
 
+// --- ИЗМЕНЕНИЕ: Обновляем цвета иконок под новую палитру ---
 const treatmentMeta = {
-  [TreatmentType.WORMS]: { name: 'от глистов', icon: Pill, color: 'text-rose-500' },
-  [TreatmentType.FLEAS]: { name: 'от блох', icon: Bug, color: 'text-green-500' },
-  [TreatmentType.EAR_MITES]: { name: 'от ушных клещей', icon: Ear, color: 'text-sky-500' },
-  [TreatmentType.VACCINATION]: { name: 'вакцинация', icon: Syringe, color: 'text-blue-500' },
+  [TreatmentType.WORMS]: { name: 'от глистов', icon: Pill, color: 'text-brand-accent' }, // Красный/розовый
+  [TreatmentType.FLEAS]: { name: 'от блох', icon: Bug, color: 'text-amber-600' }, // Темно-янтарный
+  [TreatmentType.EAR_MITES]: { name: 'от ушных клещей', icon: Ear, color: 'text-sky-600' }, // Небесный
+  [TreatmentType.VACCINATION]: { name: 'вакцинация', icon: Syringe, color: 'text-brand-primary' }, // Основной бордовый
 };
 
 const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ cat, canEdit, onAddClick, onDeleteClick }) => {
@@ -47,15 +49,15 @@ const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ cat, canEdit, onA
                 if (t.vaccinationStage === 'first') {
                     displayName = 'Первичная вакцинация';
                     Icon = Syringe;
-                    iconColor = 'text-blue-500';
+                    iconColor = 'text-brand-primary'; // Основной цвет
                 } else if (t.vaccinationStage === 'second') {
                     displayName = 'Ревакцинация';
                     Icon = CheckCircle2;
-                    iconColor = 'text-emerald-500';
+                    iconColor = 'text-brand-success'; // Зеленый
                 } else if (t.vaccinationStage === 'revaccination') {
                     displayName = 'Ежегодная вакцинация';
                     Icon = CheckCircle2;
-                    iconColor = 'text-purple-500';
+                    iconColor = 'text-indigo-500'; // Дополнительный цвет для отличия
                 }
             }
             
