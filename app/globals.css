@@ -28,3 +28,32 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af; /* Gray 400 */
 }
+
+@keyframes fly {
+  0% {
+    /* Анимация начинается с начальной позиции и полной прозрачности */
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  15%, 85% {
+    /* Иконка становится видимой на большей части своего пути */
+    opacity: 0.5;
+  }
+  100% {
+    /* Улетает на 100% высоты экрана вверх от своего начального положения */
+    transform: translateY(-100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
