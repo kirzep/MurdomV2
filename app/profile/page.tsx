@@ -2,11 +2,13 @@
 "use client";
 
 import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+// ИЗМЕНЕНИЕ: Импортируем signOut
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff } from 'lucide-react';
+// ИЗМЕНЕНИЕ: Импортируем иконку LogOut
+import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/app/components/ui/Button';
 import Input from '@/app/components/ui/Input';
@@ -45,91 +47,56 @@ export default function ProfilePage() {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
-    // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Надежное получение Service Worker ---
     const getServiceWorkerRegistration = useCallback((): Promise<ServiceWorkerRegistration> => {
-        console.log('[SW_HELPER] Getting or activating Service Worker...');
         return new Promise(async (resolve, reject) => {
             if (!('serviceWorker' in navigator)) {
                 return reject(new Error('Service Worker не поддерживается.'));
             }
-
             const timeout = setTimeout(() => {
-                reject(new Error('Время ожидания Service Worker истекло. Пожалуйста, перезагрузите страницу.'));
-            }, 15000); // Увеличенный таймаут
-
+                reject(new Error('Время ожидания Service Worker истекло.'));
+            }, 15000);
             try {
-                // Регистрируем SW. Если он уже есть, это просто вернет существующую регистрацию.
                 const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                console.log('[SW_HELPER] SW registered/found. Scope:', registration.scope);
-
-                // Если SW уже активен, отлично!
                 if (registration.active) {
-                    console.log('[SW_HELPER] SW is already active.');
                     clearTimeout(timeout);
                     return resolve(registration);
                 }
-
-                // Если SW в процессе установки или ожидания, мы слушаем изменение его состояния.
                 const worker = registration.installing || registration.waiting;
                 if (worker) {
-                    console.log('[SW_HELPER] SW is installing/waiting. State:', worker.state);
                     worker.addEventListener('statechange', () => {
                         if (worker.state === 'activated') {
-                            console.log('[SW_HELPER] SW activated via statechange event.');
                             clearTimeout(timeout);
                             resolve(registration);
                         }
                     });
-                } else {
-                    // Редкий случай, когда нет ни активного, ни устанавливающегося воркера.
-                    // Полагаемся на `ready` как на запасной вариант.
-                    console.warn('[SW_HELPER] No active/installing worker. Falling back to .ready');
-                     navigator.serviceWorker.ready.then(reg => {
-                        clearTimeout(timeout);
-                        console.log('[SW_HELPER] SW is ready (fallback).');
-                        resolve(reg);
-                    }).catch(err => {
-                        clearTimeout(timeout);
-                        reject(err);
-                    });
                 }
             } catch (error) {
                 clearTimeout(timeout);
-                console.error('[SW_HELPER] Error during SW registration/activation:', error);
                 reject(error);
             }
         });
     }, []);
 
-    // --- Обновленный useEffect для первоначальной проверки ---
     useEffect(() => {
         if (session?.user) {
             setName(session.user.name ?? '');
             const imagePath = session.user.image ? `${appUrl}${session.user.image}` : null;
             setAvatarPreview(imagePath);
         }
-
         if (status === 'authenticated') {
             if (!('serviceWorker' in navigator && 'PushManager' in window)) {
-                console.warn('Push-уведомления не поддерживаются.');
                 setIsSubscriptionEnabled(false);
                 setIsSubscriptionLoading(false);
                 return;
             }
-
             getServiceWorkerRegistration()
                 .then(reg => reg.pushManager.getSubscription())
-                .then(sub => {
-                    console.log('[PROFILE useEffect] Initial subscription state:', !!sub);
-                    setIsSubscribed(!!sub);
-                })
+                .then(sub => setIsSubscribed(!!sub))
                 .catch(error => {
-                    console.error("[PROFILE useEffect] Error getting initial subscription state:", error);
+                    console.error("[PROFILE] Error getting initial subscription state:", error);
                     setIsSubscriptionEnabled(false);
                 })
-                .finally(() => {
-                    setIsSubscriptionLoading(false);
-                });
+                .finally(() => setIsSubscriptionLoading(false));
         }
     }, [session, status, appUrl, getServiceWorkerRegistration]);
 
@@ -154,29 +121,21 @@ export default function ProfilePage() {
     const handleProfileUpdate = async (e: FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-
         const formData = new FormData();
         formData.append('name', name);
         if (avatarFile) {
             formData.append('file', avatarFile);
         }
-
         try {
-            const response = await fetch('/api/profile', {
-                method: 'PATCH',
-                body: formData,
-            });
-
+            const response = await fetch('/api/profile', { method: 'PATCH', body: formData });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Не удалось обновить профиль');
             }
-            
             await update();
             alert('Профиль успешно обновлен!');
             setIsEditing(false);
             setAvatarFile(null);
-
         } catch (error) {
             console.error(error);
             alert((error as Error).message);
@@ -185,23 +144,17 @@ export default function ProfilePage() {
         }
     };
     
-    // --- Обновленный обработчик нажатия ---
     const handleSubscriptionToggle = async () => {
-        console.log('[PROFILE] Toggling subscription...');
         setIsSubscriptionLoading(true);
-
         try {
             const registration = await getServiceWorkerRegistration();
-
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
-                alert('Вы не разрешили показ уведомлений. Чтобы включить их, измените настройки сайта в браузере.');
+                alert('Вы не разрешили показ уведомлений.');
                 setIsSubscriptionLoading(false);
                 return;
             }
-
             const existingSubscription = await registration.pushManager.getSubscription();
-
             if (existingSubscription) {
                 await existingSubscription.unsubscribe();
                 await fetch('/api/push/subscribe', {
@@ -215,21 +168,18 @@ export default function ProfilePage() {
                 const response = await fetch('/api/push/vapid-key');
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.error || 'Не удалось получить ключ для подписки с сервера.');
+                    throw new Error(err.error || 'Не удалось получить ключ.');
                 }
                 const { publicKey } = await response.json();
-                
                 const newSubscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: urlBase64ToUint8Array(publicKey),
                 });
-                
                 await fetch('/api/push/subscribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newSubscription),
                 });
-                
                 setIsSubscribed(true);
                 alert('Вы успешно подписались на уведомления!');
             }
@@ -241,6 +191,11 @@ export default function ProfilePage() {
         } finally {
             setIsSubscriptionLoading(false);
         }
+    };
+
+    // --- ИЗМЕНЕНИЕ: Функция для выхода из аккаунта ---
+    const handleSignOut = () => {
+        signOut({ callbackUrl: '/login' });
     };
 
     if (status === 'loading') {
@@ -258,7 +213,7 @@ export default function ProfilePage() {
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-2xl mx-auto">
                 <div className="mb-8">
-                     <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
+                     <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                         <ArrowLeft size={18} />
                         Вернуться в архив
                     </Link>
@@ -329,6 +284,15 @@ export default function ProfilePage() {
                             >
                             {isSubscribed ? <BellOff size={20} className="mr-2"/> : <Bell size={20} className="mr-2"/>}
                             {isSubscribed ? 'Уведомления Вкл.' : 'Вкл. уведомления'}
+                        </Button>
+                        {/* --- ИЗМЕНЕНИЕ: Добавлена кнопка выхода --- */}
+                        <Button 
+                            type="button" 
+                            onClick={handleSignOut} 
+                            variant="danger"
+                        >
+                            <LogOut size={20} className="mr-2"/>
+                            Выйти
                         </Button>
                     </div>
                 </form>
