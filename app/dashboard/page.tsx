@@ -9,18 +9,19 @@ import CatCard from './CatCard';
 import Spinner from '../components/ui/Spinner';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Search, Plus, Menu, MessageCircle, X, Trash2, Sparkles, CatIcon as FelineIcon } from 'lucide-react';
+// --- ИЗМЕНЕНИЕ: Убираем иконку Menu ---
+import { Search, Plus, MessageCircle, X, Trash2, Sparkles, CatIcon as FelineIcon } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
-import SidePanel from '../components/SidePanel';
+// --- ИЗМЕНЕНИЕ: Убираем SidePanel ---
 import ChatWidget from '../components/ChatWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
 import RevaccinationAlerts from './RevaccinationAlerts';
 import RevaccinationModal from './RevaccinationModal';
 import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
-import MurdomAiWidget from '../components/AiAssistantWidget'; // Импортируем нового ассистента
+import MurdomAiWidget from '../components/AiAssistantWidget';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -28,7 +29,7 @@ const containerVariants = {
 };
 
 const getRandomDuration = () => Math.floor(Math.random() * (4000 - 2000 + 1)) + 2000;
-const CURRENT_APP_VERSION = '1.2.3';
+const CURRENT_APP_VERSION = '2.0.1'; // Пример новой версии
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -48,9 +49,9 @@ export default function DashboardPage() {
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
   const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  // --- ИЗМЕНЕНИЕ: Убираем состояние для боковой панели ---
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false); // Состояние для MurdomAI
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
@@ -175,7 +176,7 @@ export default function DashboardPage() {
       </AnimatePresence>
       
       <PatchNotesModal isOpen={showPatchNotes} onClose={handleClosePatchNotes} version={CURRENT_APP_VERSION} />
-      <SidePanel isOpen={isPanelOpen} onClose={() => setIsPanelOpen(false)} />
+      {/* --- ИЗМЕНЕНИЕ: Убираем SidePanel --- */}
       {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
       <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       <MurdomAiWidget isOpen={isAiAssistantOpen} onClose={() => setIsAiAssistantOpen(false)} />
@@ -190,16 +191,12 @@ export default function DashboardPage() {
         >
           <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
             <div className="container mx-auto px-4 py-3">
+                {/* --- ИЗМЕНЕНИЕ: Упрощенный header --- */}
                 <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <Button onClick={() => setIsPanelOpen(true)} variant="secondary" className="p-2 h-12 w-12 rounded-full">
-                        <Menu size={28} />
-                      </Button>
-                      <h1 className="text-xl md:text-2xl font-bold text-brand-primary flex items-center gap-2">
-                        <FelineIcon size={28}/>
-                        <span className="hidden sm:inline">Архив</span>
-                      </h1>
-                    </div>
+                    <h1 className="text-xl md:text-2xl font-bold text-brand-primary flex items-center gap-2">
+                      <FelineIcon size={28}/>
+                      <span className="hidden sm:inline">Архив</span>
+                    </h1>
                     <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg">
                         <Input 
                             placeholder="Поиск по кличке..."
@@ -251,7 +248,7 @@ export default function DashboardPage() {
             )}
           </main>
           
-          <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-4">
+          <div className="fixed bottom-24 right-6 z-40 flex flex-col gap-4">
                 {canUseAiAssistant && (
                     <Button 
                         className="h-16 w-16 rounded-full shadow-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white" 
@@ -273,7 +270,7 @@ export default function DashboardPage() {
                         animate={{ y: 0 }}
                         exit={{ y: "120%" }}
                         transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-                        className="fixed bottom-4 inset-x-4 max-w-md mx-auto z-50"
+                        className="fixed bottom-24 inset-x-4 max-w-md mx-auto z-50"
                     >
                         <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
                             <Button onClick={handleCancelSelection} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">

@@ -1,13 +1,12 @@
 // public/sw.js
 
 // ВАЖНО: При каждом новом развертывании приложения меняйте эту версию!
-// Например, 'v6', 'v7' и т.д. Это гарантирует, что старый кеш удалится.
-const CACHE_VERSION = 'v10';
+// Например, 'v11', 'v12' и т.д. Это гарантирует, что старый кеш удалится.
+const CACHE_VERSION = 'v15';
 const CACHE_NAME = `cat-archive-shell-${CACHE_VERSION}`;
 const DATA_CACHE_NAME = `cat-archive-data-${CACHE_VERSION}`;
 
 // Файлы, которые составляют "оболочку" приложения.
-// Они кешируются при установке сервис-воркера.
 const FILES_TO_CACHE = [
   '/',
   '/dashboard',
@@ -18,8 +17,6 @@ const FILES_TO_CACHE = [
   '/favicon.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
-  // Можно добавить сюда оффлайн-страницу, если она у вас будет
-  // '/offline.html'
 ];
 
 // 1. Установка сервис-воркера
@@ -31,11 +28,7 @@ self.addEventListener('install', (event) => {
         console.log('[Service Worker] Кеширование оболочки приложения...');
         return cache.addAll(FILES_TO_CACHE);
       })
-      .then(() => {
-        // Заставляет новый сервис-воркер активироваться немедленно,
-        // не дожидаясь закрытия всех вкладок.
-        self.skipWaiting();
-      })
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -46,7 +39,6 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Удаляем все кеши, которые не соответствуют текущей версии
           if (cacheName !== CACHE_NAME && cacheName !== DATA_CACHE_NAME) {
             console.log('[Service Worker] Удаление старого кеша:', cacheName);
             return caches.delete(cacheName);
@@ -55,26 +47,29 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // Позволяет новому сервис-воркеру немедленно взять под контроль все открытые страницы.
-  self.clients.claim();
+  return self.clients.claim();
 });
 
 // 3. Перехват сетевых запросов
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // Игнорируем запросы от расширений Chrome
   if (request.url.startsWith('chrome-extension://')) {
     return;
   }
 
-  // Стратегия для API-запросов: "Сначала сеть, потом кеш" (Network First)
-  // Это гарантирует, что данные всегда будут максимально свежими.
+  // --- ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ API ---
   if (request.url.includes('/api/')) {
+    // Если это НЕ GET-запрос (например, POST, DELETE, PATCH),
+    // просто отправляем его в сеть и не пытаемся кешировать.
+    if (request.method !== 'GET') {
+      return event.respondWith(fetch(request));
+    }
+
+    // Для GET-запросов используем стратегию "Сначала сеть, потом кеш"
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Если запрос успешен, клонируем ответ и сохраняем в кеш данных
           if (response.status === 200) {
             const responseToCache = response.clone();
             caches.open(DATA_CACHE_NAME).then((cache) => {
@@ -85,37 +80,22 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           // Если сеть недоступна, пытаемся отдать данные из кеша
-          return caches.match(request);
+          return caches.match(request).then(cachedResponse => {
+            return cachedResponse || new Response(JSON.stringify({ error: 'Offline' }), {
+              headers: { 'Content-Type': 'application/json' },
+              status: 503
+            });
+          });
         })
     );
     return;
   }
 
-  // Стратегия для навигации (HTML-страниц): "Сначала сеть, потом кеш"
-  // Это решает вашу главную проблему: пользователь всегда получит новую версию сайта, если есть интернет.
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .catch(() => {
-          // Если сеть недоступна, отдаем корневую страницу из кеша.
-          // В идеале здесь можно отдавать специальную оффлайн-страницу.
-          return caches.match('/');
-        })
-    );
-    return;
-  }
-
-  // Стратегия для всех остальных запросов (CSS, JS, картинки): "Сначала кеш, потом сеть" (Cache First)
-  // Это самая быстрая стратегия для статических ресурсов.
+  // Стратегия для всех остальных запросов (страницы, CSS, JS, картинки): "Сначала кеш, потом сеть"
   event.respondWith(
     caches.match(request)
       .then((cachedResponse) => {
-        // Если ресурс есть в кеше, отдаем его
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // Если нет, идем в сеть, получаем ресурс и кешируем его на лету
-        return fetch(request).then((networkResponse) => {
+        return cachedResponse || fetch(request).then((networkResponse) => {
           if (networkResponse.status === 200) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -128,7 +108,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Обработчики Push-уведомлений (остаются без изменений)
+// Обработчики Push-уведомлений
 self.addEventListener('push', (event) => {
     const data = event.data ? event.data.json() : { title: 'Архив Кошек', body: 'У вас новое уведомление.' };
     const options = {

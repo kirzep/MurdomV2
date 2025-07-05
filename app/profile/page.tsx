@@ -1,7 +1,7 @@
 // app/profile/page.tsx
 "use client";
 
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
@@ -41,9 +41,67 @@ export default function ProfilePage() {
     
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true);
+    const [isSubscriptionEnabled, setIsSubscriptionEnabled] = useState(true);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
+    // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ: Надежное получение Service Worker ---
+    const getServiceWorkerRegistration = useCallback((): Promise<ServiceWorkerRegistration> => {
+        console.log('[SW_HELPER] Getting or activating Service Worker...');
+        return new Promise(async (resolve, reject) => {
+            if (!('serviceWorker' in navigator)) {
+                return reject(new Error('Service Worker не поддерживается.'));
+            }
+
+            const timeout = setTimeout(() => {
+                reject(new Error('Время ожидания Service Worker истекло. Пожалуйста, перезагрузите страницу.'));
+            }, 15000); // Увеличенный таймаут
+
+            try {
+                // Регистрируем SW. Если он уже есть, это просто вернет существующую регистрацию.
+                const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+                console.log('[SW_HELPER] SW registered/found. Scope:', registration.scope);
+
+                // Если SW уже активен, отлично!
+                if (registration.active) {
+                    console.log('[SW_HELPER] SW is already active.');
+                    clearTimeout(timeout);
+                    return resolve(registration);
+                }
+
+                // Если SW в процессе установки или ожидания, мы слушаем изменение его состояния.
+                const worker = registration.installing || registration.waiting;
+                if (worker) {
+                    console.log('[SW_HELPER] SW is installing/waiting. State:', worker.state);
+                    worker.addEventListener('statechange', () => {
+                        if (worker.state === 'activated') {
+                            console.log('[SW_HELPER] SW activated via statechange event.');
+                            clearTimeout(timeout);
+                            resolve(registration);
+                        }
+                    });
+                } else {
+                    // Редкий случай, когда нет ни активного, ни устанавливающегося воркера.
+                    // Полагаемся на `ready` как на запасной вариант.
+                    console.warn('[SW_HELPER] No active/installing worker. Falling back to .ready');
+                     navigator.serviceWorker.ready.then(reg => {
+                        clearTimeout(timeout);
+                        console.log('[SW_HELPER] SW is ready (fallback).');
+                        resolve(reg);
+                    }).catch(err => {
+                        clearTimeout(timeout);
+                        reject(err);
+                    });
+                }
+            } catch (error) {
+                clearTimeout(timeout);
+                console.error('[SW_HELPER] Error during SW registration/activation:', error);
+                reject(error);
+            }
+        });
+    }, []);
+
+    // --- Обновленный useEffect для первоначальной проверки ---
     useEffect(() => {
         if (session?.user) {
             setName(session.user.name ?? '');
@@ -52,22 +110,28 @@ export default function ProfilePage() {
         }
 
         if (status === 'authenticated') {
-            if ('serviceWorker' in navigator && 'PushManager' in window) {
-                navigator.serviceWorker.ready.then(reg => {
-                    reg.pushManager.getSubscription().then(sub => {
-                        setIsSubscribed(!!sub);
-                        setIsSubscriptionLoading(false);
-                    });
-                }).catch(error => {
-                    console.error("Service worker ready error:", error);
+            if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+                console.warn('Push-уведомления не поддерживаются.');
+                setIsSubscriptionEnabled(false);
+                setIsSubscriptionLoading(false);
+                return;
+            }
+
+            getServiceWorkerRegistration()
+                .then(reg => reg.pushManager.getSubscription())
+                .then(sub => {
+                    console.log('[PROFILE useEffect] Initial subscription state:', !!sub);
+                    setIsSubscribed(!!sub);
+                })
+                .catch(error => {
+                    console.error("[PROFILE useEffect] Error getting initial subscription state:", error);
+                    setIsSubscriptionEnabled(false);
+                })
+                .finally(() => {
                     setIsSubscriptionLoading(false);
                 });
-            } else {
-                console.warn('Push notifications are not supported in this browser.');
-                setIsSubscriptionLoading(false);
-            }
         }
-    }, [session, status, appUrl]);
+    }, [session, status, appUrl, getServiceWorkerRegistration]);
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -121,26 +185,30 @@ export default function ProfilePage() {
         }
     };
     
+    // --- Обновленный обработчик нажатия ---
     const handleSubscriptionToggle = async () => {
-        if (!('serviceWorker' in navigator && 'PushManager' in window)) {
-            alert('Push-уведомления не поддерживаются в вашем браузере.');
-            return;
-        }
-
+        console.log('[PROFILE] Toggling subscription...');
         setIsSubscriptionLoading(true);
 
         try {
+            const registration = await getServiceWorkerRegistration();
+
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
                 alert('Вы не разрешили показ уведомлений. Чтобы включить их, измените настройки сайта в браузере.');
+                setIsSubscriptionLoading(false);
                 return;
             }
 
-            const registration = await navigator.serviceWorker.ready;
             const existingSubscription = await registration.pushManager.getSubscription();
 
             if (existingSubscription) {
                 await existingSubscription.unsubscribe();
+                await fetch('/api/push/subscribe', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ endpoint: existingSubscription.endpoint }),
+                });
                 setIsSubscribed(false);
                 alert('Вы успешно отписались от уведомлений.');
             } else {
@@ -150,11 +218,10 @@ export default function ProfilePage() {
                     throw new Error(err.error || 'Не удалось получить ключ для подписки с сервера.');
                 }
                 const { publicKey } = await response.json();
-                const applicationServerKey = urlBase64ToUint8Array(publicKey);
-
+                
                 const newSubscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey,
+                    applicationServerKey: urlBase64ToUint8Array(publicKey),
                 });
                 
                 await fetch('/api/push/subscribe', {
@@ -167,8 +234,10 @@ export default function ProfilePage() {
                 alert('Вы успешно подписались на уведомления!');
             }
         } catch (error) {
-            console.error('Failed to toggle subscription: ', error);
+            console.error('[PROFILE] Subscription toggle error:', error);
             alert(`Не удалось изменить статус подписки: ${(error as Error).message}`);
+            const sub = await navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).catch(() => null);
+            setIsSubscribed(!!sub);
         } finally {
             setIsSubscriptionLoading(false);
         }
@@ -188,7 +257,6 @@ export default function ProfilePage() {
     return (
         <div className="min-h-screen p-4 sm:p-8">
             <div className="max-w-2xl mx-auto">
-                {/* ИЗМЕНЕНИЕ 2: Применяем стиль кнопки к ссылке */}
                 <div className="mb-8">
                      <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-secondary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                         <ArrowLeft size={18} />
@@ -256,6 +324,8 @@ export default function ProfilePage() {
                             onClick={handleSubscriptionToggle} 
                             variant="secondary"
                             isLoading={isSubscriptionLoading}
+                            disabled={!isSubscriptionEnabled}
+                            title={!isSubscriptionEnabled ? "Функция уведомлений недоступна" : ""}
                             >
                             {isSubscribed ? <BellOff size={20} className="mr-2"/> : <Bell size={20} className="mr-2"/>}
                             {isSubscribed ? 'Уведомления Вкл.' : 'Вкл. уведомления'}

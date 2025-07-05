@@ -5,6 +5,8 @@ import './globals.css'
 import NextAuthProvider from './components/NextAuthProvider'
 import PWAInstaller from './components/PWAInstaller'
 import ConnectionStatusBanner from './components/ConnectionStatusBanner'
+// --- ИЗМЕНЕНИЕ: Импортируем новую навигацию ---
+import BottomNavBar from './components/BottomNavBar'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,9 +19,8 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Архив Кошек',
   },
-  // ИСПРАВЛЕНИЕ: Добавляем иконку
   icons: {
-    icon: '/favicon.png', // Укажите здесь путь к вашей иконке в папке public
+    icon: '/favicon.png',
   },
 }
 
@@ -37,7 +38,12 @@ export default function RootLayout({
       <body>
         <ConnectionStatusBanner />
         <NextAuthProvider>
-          {children}
+          {/* --- ИЗМЕНЕНИЕ: Добавляем отступ снизу --- */}
+          <main className="pb-24">
+            {children}
+          </main>
+          {/* --- ИЗМЕНЕНИЕ: Добавляем нижнюю панель --- */}
+          <BottomNavBar />
         </NextAuthProvider>
         <PWAInstaller />
       </body>
