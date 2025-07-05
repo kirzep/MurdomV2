@@ -5,8 +5,8 @@ import './globals.css'
 import NextAuthProvider from './components/NextAuthProvider'
 import PWAInstaller from './components/PWAInstaller'
 import ConnectionStatusBanner from './components/ConnectionStatusBanner'
-// --- ИЗМЕНЕНИЕ: Импортируем новую навигацию ---
-import BottomNavBar from './components/BottomNavBar'
+// --- ИЗМЕНЕНИЕ: Убираем BottomNavBar, импортируем AppShell ---
+import AppShell from './components/AppShell'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,7 +20,25 @@ export const metadata: Metadata = {
     title: 'Архив Кошек',
   },
   icons: {
-    icon: '/favicon.png',
+    icon: '/icons/favicon.ico',
+    shortcut: '/icons/favicon-16x16.png',
+    apple: '/icons/apple-touch-icon.png',
+    other: [
+      {
+        rel: 'apple-touch-icon-precomposed',
+        url: '/icons/apple-touch-icon.png',
+      },
+      {
+        rel: 'icon',
+        url: '/icons/favicon-16x16.png',
+        sizes: '16x16',
+      },
+      {
+        rel: 'icon',
+        url: '/icons/favicon-32x32.png',
+        sizes: '32x32',
+      },
+    ],
   },
 }
 
@@ -38,12 +56,8 @@ export default function RootLayout({
       <body>
         <ConnectionStatusBanner />
         <NextAuthProvider>
-          {/* --- ИЗМЕНЕНИЕ: Добавляем отступ снизу --- */}
-          <main className="pb-24">
-            {children}
-          </main>
-          {/* --- ИЗМЕНЕНИЕ: Добавляем нижнюю панель --- */}
-          <BottomNavBar />
+          {/* --- ИЗМЕНЕНИЕ: Оборачиваем всё в AppShell --- */}
+          <AppShell>{children}</AppShell>
         </NextAuthProvider>
         <PWAInstaller />
       </body>

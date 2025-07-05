@@ -9,7 +9,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  headerActions?: React.ReactNode; // Новый необязательный пропс для кнопок
+  headerActions?: React.ReactNode;
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, headerActions }) => {
@@ -20,7 +20,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, headerA
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          // ИЗМЕНЕНИЕ: Увеличиваем z-index до 60, чтобы он был выше панели (у которой z-50)
+          // Также добавляем отступы p-4 для безопасности на маленьких экранах.
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={onClose}
         >
           <motion.div
@@ -34,9 +36,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, headerA
             <div className="flex items-center justify-between pb-4 border-b border-brand-border">
               <h3 className="text-xl font-semibold text-brand-text-primary truncate pr-4">{title}</h3>
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Рендерим дополнительные кнопки здесь */}
                 {headerActions}
-                {/* Основная кнопка закрытия теперь не нужна, если есть headerActions, но оставим для обратной совместимости */}
               </div>
             </div>
             <div className="mt-4">{children}</div>
