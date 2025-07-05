@@ -1,27 +1,27 @@
 // public/sw.js
 
-// ВАЖНО: При каждом новом развертывании приложения меняйте эту версию!
-// Например, 'v11', 'v12' и т.д. Это гарантирует, что старый кеш удалится.
-const CACHE_VERSION = 'v16';
+// ИЗМЕНЕНИЕ: Снова увеличиваем версию, чтобы активировать новый Service Worker
+const CACHE_VERSION = 'v13';
 const CACHE_NAME = `cat-archive-shell-${CACHE_VERSION}`;
-const DATA_CACHE_NAME = `cat-archive-data-${CACHE_VERSION}`;
 
-// Файлы, которые составляют "оболочку" приложения.
+// Список ключевых файлов, которые будут закешированы при установке.
+// Это "оболочка" вашего приложения.
 const FILES_TO_CACHE = [
   '/',
   '/dashboard',
   '/profile',
   '/staff',
   '/login',
-  '/manifest.json',
-  '/favicon.png',
+  '/manifest.json?v=2.1.0', // Добавляем версию, чтобы манифест точно обновился
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
+  '/icons/favicon.ico',
+  '/icons/apple-touch-icon.png'
 ];
 
-// 1. Установка сервис-воркера
+// Установка сервис-воркера
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Установка...');
+  console.log(`[Service Worker] Установка версии ${CACHE_VERSION}...`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -32,14 +32,15 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// 2. Активация сервис-воркера и очистка старого кеша
+// Активация и очистка старого кеша
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Активация...');
+  console.log(`[Service Worker] Активация версии ${CACHE_VERSION}...`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName !== DATA_CACHE_NAME) {
+          // Удаляем все кеши, которые не соответствуют текущей версии
+          if (cacheName !== CACHE_NAME) {
             console.log('[Service Worker] Удаление старого кеша:', cacheName);
             return caches.delete(cacheName);
           }
@@ -50,89 +51,69 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// 3. Перехват сетевых запросов
+// --- НОВАЯ ЛОГИКА ПЕРЕХВАТА ЗАПРОСОВ ---
+// Стратегия: "Сначала сеть, потом кеш" для всех GET-запросов.
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  if (request.url.startsWith('chrome-extension://')) {
+  // Игнорируем все, кроме GET-запросов, и запросы расширений
+  if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
     return;
   }
 
-  // --- ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ API ---
-  if (request.url.includes('/api/')) {
-    // Если это НЕ GET-запрос (например, POST, DELETE, PATCH),
-    // просто отправляем его в сеть и не пытаемся кешировать.
-    if (request.method !== 'GET') {
-      return event.respondWith(fetch(request));
-    }
-
-    // Для GET-запросов используем стратегию "Сначала сеть, потом кеш"
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(DATA_CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Если сеть недоступна, пытаемся отдать данные из кеша
-          return caches.match(request).then(cachedResponse => {
-            return cachedResponse || new Response(JSON.stringify({ error: 'Offline' }), {
-              headers: { 'Content-Type': 'application/json' },
-              status: 503
-            });
-          });
-        })
-    );
-    return;
-  }
-
-  // Стратегия для всех остальных запросов (страницы, CSS, JS, картинки): "Сначала кеш, потом сеть"
   event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        return cachedResponse || fetch(request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
+    // 1. Сначала пытаемся получить ресурс из сети
+    fetch(event.request)
+      .then((networkResponse) => {
+        console.log(`[Service Worker] Получено из сети: ${event.request.url}`);
+        
+        // Если запрос успешен, клонируем ответ и сохраняем его в кеш
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return networkResponse;
+      })
+      .catch(() => {
+        // 2. Если сеть недоступна, пытаемся отдать ресурс из кеша
+        console.log(`[Service Worker] Сеть недоступна, ищем в кеше: ${event.request.url}`);
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            console.log(`[Service Worker] Найдено в кеше: ${event.request.url}`);
+            return cachedResponse;
+          }
+
+          // Если ресурса нет ни в сети, ни в кеше, можно вернуть заглушку
+          console.warn(`[Service Worker] Ресурс не найден нигде: ${event.request.url}`);
+          // Для HTML-страниц можно вернуть специальную оффлайн-страницу
+          if (event.request.headers.get('accept')?.includes('text/html')) {
+            return new Response('<h1>Вы оффлайн</h1><p>Похоже, у вас нет подключения к интернету, а эта страница не была сохранена ранее.</p>', {
+              headers: { 'Content-Type': 'text/html; charset=utf-8' }
             });
           }
-          return networkResponse;
         });
       })
   );
 });
 
-// Обработчики Push-уведомлений
+// Обработчики Push-уведомлений (без изменений)
 self.addEventListener('push', (event) => {
     const data = event.data ? event.data.json() : { title: 'Архив Кошек', body: 'У вас новое уведомление.' };
-    const options = {
+    event.waitUntil(self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
       data: data.data || {}
-    };
-    event.waitUntil(self.registration.showNotification(data.title, options));
+    }));
 });
-
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     const urlToOpen = new URL(event.notification.data.url || '/', self.location.origin).href;
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
-          if (client.url === urlToOpen && 'focus' in client) {
-            return client.focus();
-          }
+          if (client.url === urlToOpen && 'focus' in client) return client.focus();
         }
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen);
-        }
+        if (clients.openWindow) return clients.openWindow(urlToOpen);
       })
     );
 });
