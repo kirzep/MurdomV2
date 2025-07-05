@@ -9,12 +9,10 @@ import CatCard from './CatCard';
 import Spinner from '../components/ui/Spinner';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-// --- ИЗМЕНЕНИЕ: Убираем иконку Menu ---
-import { Search, Plus, MessageCircle, X, Trash2, Sparkles, CatIcon as FelineIcon } from 'lucide-react';
+import { Search, Plus, X, Trash2, CatIcon as FelineIcon } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
-// --- ИЗМЕНЕНИЕ: Убираем SidePanel ---
 import ChatWidget from '../components/ChatWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
@@ -22,6 +20,8 @@ import RevaccinationAlerts from './RevaccinationAlerts';
 import RevaccinationModal from './RevaccinationModal';
 import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
 import MurdomAiWidget from '../components/AiAssistantWidget';
+// --- ИЗМЕНЕНИЕ: Импортируем новый компонент ---
+import FloatingActionMenu from '../components/FloatingActionMenu';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -29,7 +29,7 @@ const containerVariants = {
 };
 
 const getRandomDuration = () => Math.floor(Math.random() * (4000 - 2000 + 1)) + 2000;
-const CURRENT_APP_VERSION = '2.0.1'; // Пример новой версии
+const CURRENT_APP_VERSION = '2.2.1'; 
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -49,7 +49,6 @@ export default function DashboardPage() {
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
   const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
-  // --- ИЗМЕНЕНИЕ: Убираем состояние для боковой панели ---
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
@@ -176,7 +175,6 @@ export default function DashboardPage() {
       </AnimatePresence>
       
       <PatchNotesModal isOpen={showPatchNotes} onClose={handleClosePatchNotes} version={CURRENT_APP_VERSION} />
-      {/* --- ИЗМЕНЕНИЕ: Убираем SidePanel --- */}
       {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
       <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
       <MurdomAiWidget isOpen={isAiAssistantOpen} onClose={() => setIsAiAssistantOpen(false)} />
@@ -191,7 +189,6 @@ export default function DashboardPage() {
         >
           <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
             <div className="container mx-auto px-4 py-3">
-                {/* --- ИЗМЕНЕНИЕ: Упрощенный header --- */}
                 <div className="flex items-center justify-between gap-4">
                     <h1 className="text-xl md:text-2xl font-bold text-brand-primary flex items-center gap-2">
                       <FelineIcon size={28}/>
@@ -248,20 +245,12 @@ export default function DashboardPage() {
             )}
           </main>
           
-          <div className="fixed bottom-24 right-6 z-40 flex flex-col gap-4">
-                {canUseAiAssistant && (
-                    <Button 
-                        className="h-16 w-16 rounded-full shadow-lg bg-gradient-to-br from-purple-500 to-indigo-600 text-white" 
-                        onClick={() => setIsAiAssistantOpen(true)}
-                        aria-label="Открыть ИИ-ассистента"
-                    >
-                        <Sparkles size={32} />
-                    </Button>
-                )}
-                <Button className="h-16 w-16 rounded-full shadow-lg" onClick={() => setIsChatOpen(true)} aria-label="Открыть чат">
-                    <MessageCircle size={32} />
-                </Button>
-          </div>
+          {/* --- ИЗМЕНЕНИЕ: Заменяем старые кнопки на новое меню --- */}
+          <FloatingActionMenu
+            onChatClick={() => setIsChatOpen(true)}
+            onAiClick={() => setIsAiAssistantOpen(true)}
+            canUseAi={canUseAiAssistant}
+          />
 
             <AnimatePresence>
                 {isSelectionMode && (
