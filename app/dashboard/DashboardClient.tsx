@@ -26,7 +26,7 @@ const containerVariants = {
   visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
-const CURRENT_APP_VERSION = '2.3.0'; // Версия до введения встряхивания
+const CURRENT_APP_VERSION = '2.2.1'; // Версия до введения встряхивания
 
 export default function DashboardClient({ loadingIcons }: { loadingIcons: string[] }) {
   const { data: session, status } = useSession();
