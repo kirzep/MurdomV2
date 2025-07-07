@@ -4,7 +4,7 @@
 import { useEffect, useState, FormEvent, ChangeEvent, useRef } from "react";
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
-import { Cat, Role, Document as DocType, TreatmentType, AuditLog as AuditLogType } from "@/types";
+import { Cat, Role, Document as DocType, TreatmentType, AuditLog as AuditLogType, CatStatus } from "@/types";
 import Spinner from "@/app/components/ui/Spinner";
 import CatProfileHeader from "./CatProfileHeader";
 import { ArrowLeft, FileDown, FileUp } from "lucide-react";
@@ -121,6 +121,21 @@ export default function CatProfilePage() {
             await fetchCatDataAndLogs();
         } catch (error) {
             console.error("Failed to update notes:", error);
+        }
+    };
+    
+    const handleStatusChange = async (newStatus: CatStatus) => {
+        if (!cat) return;
+        try {
+            await fetch(`/api/cats/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
+            await fetchCatDataAndLogs();
+        } catch (error) {
+            console.error("Failed to update status:", error);
+            alert("Не удалось изменить статус.");
         }
     };
 
@@ -277,16 +292,17 @@ export default function CatProfilePage() {
                 <Modal isOpen={isAddTreatmentModalOpen} onClose={() => setIsAddTreatmentModalOpen(false)} title="Добавить запись об обработке">
                     <form onSubmit={handleAddTreatment} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-brand-text-secondary mb-1">Тип обработки</label>
-                            <select value={treatmentForm.type} onChange={e => setTreatmentForm({...treatmentForm, type: e.target.value as TreatmentType})} className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary">
+                            <label htmlFor="treatmentType" className="block text-sm font-medium text-brand-text-secondary mb-1">Тип обработки</label>
+                            <select id="treatmentType" value={treatmentForm.type} onChange={e => setTreatmentForm({...treatmentForm, type: e.target.value as TreatmentType})} className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary">
                                 {Object.entries(treatmentMeta).map(([key, {name}]) => <option key={key} value={key} className="capitalize">{name}</option>)}
                             </select>
                         </div>
                         
                         {treatmentForm.type === TreatmentType.VACCINATION && (
                             <div>
-                                <label className="block text-sm font-medium text-brand-text-secondary mb-1">Этап вакцинации</label>
+                                <label htmlFor="vaccinationStage" className="block text-sm font-medium text-brand-text-secondary mb-1">Этап вакцинации</label>
                                 <select 
+                                    id="vaccinationStage"
                                     value={treatmentForm.vaccinationStage} 
                                     onChange={e => setTreatmentForm({...treatmentForm, vaccinationStage: e.target.value})}
                                     className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary"
@@ -299,13 +315,13 @@ export default function CatProfilePage() {
                         )}
 
                         <div>
-                           <label className="block text-sm font-medium text-brand-text-secondary mb-1">Дата</label>
-                           <Input type="date" value={treatmentForm.date} onChange={e => setTreatmentForm({...treatmentForm, date: e.target.value})} required/>
+                           <label htmlFor="treatmentDate" className="block text-sm font-medium text-brand-text-secondary mb-1">Дата</label>
+                           <Input id="treatmentDate" type="date" value={treatmentForm.date} onChange={e => setTreatmentForm({...treatmentForm, date: e.target.value})} required/>
                         </div>
 
                         <div>
-                           <label className="block text-sm font-medium text-brand-text-secondary mb-1">Название препарата/вакцины</label>
-                           <Input placeholder="Название..." value={treatmentForm.productName} onChange={e => setTreatmentForm({...treatmentForm, productName: e.target.value})} required/>
+                           <label htmlFor="productName" className="block text-sm font-medium text-brand-text-secondary mb-1">Название препарата/вакцины</label>
+                           <Input id="productName" placeholder="Название..." value={treatmentForm.productName} onChange={e => setTreatmentForm({...treatmentForm, productName: e.target.value})} required/>
                         </div>
 
                         <Button type="submit" isLoading={isFormLoading} className="w-full">Добавить запись</Button>
@@ -326,8 +342,9 @@ export default function CatProfilePage() {
                             <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
                                 {docFilesToUpload.map((docState) => (
                                     <div key={docState.id}>
-                                        <label className="text-xs text-brand-text-secondary block mb-1">{docState.file.name}</label>
+                                        <label htmlFor={`docName-${docState.id}`} className="text-xs text-brand-text-secondary block mb-1">{docState.file.name}</label>
                                         <Input 
+                                            id={`docName-${docState.id}`}
                                             value={docState.customName} 
                                             onChange={e => handleSingleDocNameChange(docState.id, e.target.value)} 
                                             placeholder="Название документа*" 
@@ -347,7 +364,6 @@ export default function CatProfilePage() {
             <div className="min-h-screen">
                 <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
                   <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                        {/* --- ИЗМЕНЕНИЕ 1: Адаптивная кнопка "Назад" --- */}
                         <Link 
                             href="/dashboard" 
                             className="inline-flex items-center justify-center gap-2 h-11 w-11 sm:w-auto sm:px-4 rounded-full sm:rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary"
@@ -356,7 +372,6 @@ export default function CatProfilePage() {
                           <ArrowLeft size={20} />
                           <span className="hidden sm:inline">Назад к списку</span>
                       </Link>
-                      {/* --- ИЗМЕНЕНИЕ 2: Адаптивная кнопка "Экспорт" --- */}
                       <Button 
                         onClick={handleExportReport} 
                         isLoading={isGeneratingReport}
@@ -369,7 +384,14 @@ export default function CatProfilePage() {
                   </div>
                 </header>
                 <main className="container mx-auto p-4 md:p-6 space-y-6">
-                    <CatProfileHeader cat={cat} canEdit={canEdit} onEdit={() => setIsEditModalOpen(true)} onDelete={handleDeleteCat} onInfoClick={() => setIsLogModalOpen(true)} />
+                    <CatProfileHeader
+                        cat={cat}
+                        canEdit={canEdit}
+                        onEdit={() => setIsEditModalOpen(true)}
+                        onDelete={handleDeleteCat}
+                        onInfoClick={() => setIsLogModalOpen(true)}
+                        onStatusChange={handleStatusChange}
+                    />
                     <div className="grid grid-cols-1 gap-6">
                         <NotesSection cat={cat} onUpdate={handleNotesUpdate} canEdit={canEdit} />
                         <TreatmentsSection cat={cat} canEdit={canEdit} onAddClick={() => { setTreatmentForm({type: TreatmentType.WORMS, date: new Date().toISOString().split('T')[0], productName: '', vaccinationStage: 'first'}); setIsAddTreatmentModalOpen(true); }} onDeleteClick={handleDeleteTreatment} />

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         const newCat = await prisma.cat.create({
             data: {
                 name,
-                avatarUrl: avatarUrl || generateAvatar(name),
+                avatarUrl: avatarUrl ?? generateAvatar(name),
                 arrivalDate: arrivalDate,
                 birthYear: birthYear,
                 creatorId: session.user.id,

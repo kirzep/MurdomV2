@@ -39,11 +39,7 @@ const CatCard: React.FC<CatCardProps> = ({
   onToggleSelection, 
   onStartSelectionMode,
 }) => {
-  // --- НАСТРОЙКА ПРОЗРАЧНОСТИ ---
-  // Меняйте это значение от 0.0 (полностью прозрачный) до 1.0 (полностью видимый)
   const ICON_OPACITY = 0.2; 
-  // --- КОНЕЦ НАСТРОЙКИ ---
-
   const router = useRouter();
   const [backgroundIcons, setBackgroundIcons] = useState<{ id: string; src: string; style: object; }[]>([]);
 
@@ -75,7 +71,6 @@ const CatCard: React.FC<CatCardProps> = ({
     };
     
     fetchAndSetIcons();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cat.id]);
 
   const onLongPress = () => onStartSelectionMode(cat.id);
@@ -103,7 +98,6 @@ const CatCard: React.FC<CatCardProps> = ({
                 <div 
                   key={icon.id} 
                   className="absolute group-hover:scale-110 transition-all duration-300" 
-                  // Теперь прозрачность задается через инлайн-стиль
                   style={{
                     ...icon.style,
                     opacity: isSelectionMode ? 0 : ICON_OPACITY,

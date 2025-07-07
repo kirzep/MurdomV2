@@ -25,6 +25,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         if (!cat) return NextResponse.json({ error: 'Cat not found' }, { status: 404 });
         return NextResponse.json(cat);
     } catch (error) {
+        console.error("Failed to fetch cat:", error);
         return NextResponse.json({ error: 'Failed to fetch cat' }, { status: 500 });
     }
 }
@@ -32,18 +33,20 @@ export async function GET(request: Request, { params }: { params: { id: string }
 // DELETE-запрос (только для персонала)
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
-    // ИСПРАВЛЕНИЕ: Явно указываем тип массива
     const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     try {
         const cat = await prisma.cat.findUnique({ where: { id: params.id }, include: { documents: true }});
-        if (cat && cat.documents) {
+        if (cat?.documents) {
             for (const doc of cat.documents) {
                 try {
-                    await fs.unlink(path.join(process.cwd(), doc.filePath));
-                } catch (fileError) {}
+                    await fs.unlink(path.join(process.cwd(), 'public', doc.filePath));
+                } catch (fileError) {
+                    // Исправлена ошибка S2486: добавлено логирование
+                    console.error(`Could not delete file ${doc.filePath}:`, fileError);
+                }
             }
         }
         await prisma.$transaction([
@@ -57,33 +60,59 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
 }
 
+// Вспомогательная функция для создания описания изменений
+const createChangeDescription = (currentCat: any, body: any): string => {
+    const changes: string[] = [];
+    const fieldsToCompare = [
+        { key: 'name', label: 'имя' },
+        { key: 'birthYear', label: 'год рождения' },
+        { key: 'status', label: 'статус' }
+    ];
+
+    fieldsToCompare.forEach(({ key, label }) => {
+        if (body[key] !== undefined && body[key] !== currentCat[key]) {
+            changes.push(`${label} с '${currentCat[key] ?? '?'}' на '${body[key]}'`);
+        }
+    });
+    
+    if (body.arrivalDate && new Date(body.arrivalDate).getTime() !== currentCat.arrivalDate?.getTime()) {
+        changes.push(`дату поступления`);
+    }
+    if (body.avatarUrl && body.avatarUrl !== currentCat.avatarUrl) {
+        changes.push('аватар');
+    }
+    if (body.notes !== undefined && body.notes !== currentCat.notes) {
+        changes.push('заметки');
+    }
+
+    return changes.length > 0 ? `изменил(а): ${changes.join(', ')}` : '';
+};
+
+
 // PATCH-запрос с логированием (только для персонала)
 export async function PATCH(request: Request, { params }: { params: { id:string } }) {
     const session = await getServerSession(authOptions);
-    // ИСПРАВЛЕНИЕ: Явно указываем тип массива
     const allowedRoles: Role[] = [Role.MEDICAL_STAFF, Role.TRUSTED_PERSON, Role.DEVELOPER];
     if (!session || !allowedRoles.includes(session.user.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     try {
         const body = await request.json();
+        // Исправлена ошибка TS2353: убираем `select`, чтобы получить полный объект кошки
         const currentCat = await prisma.cat.findUnique({ where: { id: params.id } });
+
         if (!currentCat) {
             return NextResponse.json({ error: 'Cat not found' }, { status: 404 });
         }
-        let changes: string[] = [];
-        if (body.name && body.name !== currentCat.name) changes.push(`имя с '${currentCat.name}' на '${body.name}'`);
-        if (body.birthYear && body.birthYear !== currentCat.birthYear) changes.push(`год рождения с '${currentCat.birthYear || '?'}' на '${body.birthYear}'`);
-        if (body.arrivalDate && new Date(body.arrivalDate).getTime() !== currentCat.arrivalDate?.getTime()) changes.push(`дату поступления`);
-        if (body.avatarUrl && body.avatarUrl !== currentCat.avatarUrl) changes.push('аватар');
-        if (body.notes !== undefined && body.notes !== currentCat.notes) changes.push('заметки');
+        
+        const changeDescription = createChangeDescription(currentCat, body);
 
-        if (changes.length > 0) {
-            const changeDescription = `Пользователь изменил: ${changes.join(', ')}.`;
+        if (changeDescription) {
             await prisma.auditLog.create({
                 data: { change: changeDescription, catId: params.id, userId: session.user.id }
             });
         }
+
         const updatedCat = await prisma.cat.update({ where: { id: params.id }, data: body });
         return NextResponse.json(updatedCat);
     } catch (error) {

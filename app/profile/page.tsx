@@ -2,16 +2,14 @@
 "use client";
 
 import { useState, useEffect, FormEvent, ChangeEvent, useCallback } from 'react';
-// ИЗМЕНЕНИЕ: Импортируем signOut
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-// ИЗМЕНЕНИЕ: Импортируем иконку LogOut
 import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import Button from '@/app/components/ui/Button';
-import Input from '@/app/components/ui/Input';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 const roleNames = {
     VOLUNTEER: 'Волонтёр',
@@ -48,32 +46,34 @@ export default function ProfilePage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
     const getServiceWorkerRegistration = useCallback((): Promise<ServiceWorkerRegistration> => {
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             if (!('serviceWorker' in navigator)) {
                 return reject(new Error('Service Worker не поддерживается.'));
             }
             const timeout = setTimeout(() => {
                 reject(new Error('Время ожидания Service Worker истекло.'));
             }, 15000);
-            try {
-                const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                if (registration.active) {
+
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(registration => {
+                    if (registration.active) {
+                        clearTimeout(timeout);
+                        return resolve(registration);
+                    }
+                    const worker = registration.installing ?? registration.waiting;
+                    if (worker) {
+                        worker.addEventListener('statechange', () => {
+                            if (worker.state === 'activated') {
+                                clearTimeout(timeout);
+                                resolve(registration);
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
                     clearTimeout(timeout);
-                    return resolve(registration);
-                }
-                const worker = registration.installing || registration.waiting;
-                if (worker) {
-                    worker.addEventListener('statechange', () => {
-                        if (worker.state === 'activated') {
-                            clearTimeout(timeout);
-                            resolve(registration);
-                        }
-                    });
-                }
-            } catch (error) {
-                clearTimeout(timeout);
-                reject(error);
-            }
+                    reject(error);
+                });
         });
     }, []);
 
@@ -101,8 +101,8 @@ export default function ProfilePage() {
     }, [session, status, appUrl, getServiceWorkerRegistration]);
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
+        const file = e.target.files?.[0];
+        if (file) {
             setAvatarFile(file);
             setAvatarPreview(URL.createObjectURL(file));
         }
@@ -130,7 +130,7 @@ export default function ProfilePage() {
             const response = await fetch('/api/profile', { method: 'PATCH', body: formData });
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Не удалось обновить профиль');
+                throw new Error(errorData.error ?? 'Не удалось обновить профиль');
             }
             await update();
             alert('Профиль успешно обновлен!');
@@ -150,9 +150,7 @@ export default function ProfilePage() {
             const registration = await getServiceWorkerRegistration();
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') {
-                alert('Вы не разрешили показ уведомлений.');
-                setIsSubscriptionLoading(false);
-                return;
+                throw new Error('Вы не разрешили показ уведомлений.');
             }
             const existingSubscription = await registration.pushManager.getSubscription();
             if (existingSubscription) {
@@ -168,7 +166,7 @@ export default function ProfilePage() {
                 const response = await fetch('/api/push/vapid-key');
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.error || 'Не удалось получить ключ.');
+                    throw new Error(err.error ?? 'Не удалось получить ключ.');
                 }
                 const { publicKey } = await response.json();
                 const newSubscription = await registration.pushManager.subscribe({
@@ -186,14 +184,14 @@ export default function ProfilePage() {
         } catch (error) {
             console.error('[PROFILE] Subscription toggle error:', error);
             alert(`Не удалось изменить статус подписки: ${(error as Error).message}`);
-            const sub = await navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).catch(() => null);
-            setIsSubscribed(!!sub);
+            navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription())
+                .then(sub => setIsSubscribed(!!sub))
+                .catch(() => setIsSubscribed(false));
         } finally {
             setIsSubscriptionLoading(false);
         }
     };
 
-    // --- ИЗМЕНЕНИЕ: Функция для выхода из аккаунта ---
     const handleSignOut = () => {
         signOut({ callbackUrl: '/login' });
     };
@@ -207,7 +205,7 @@ export default function ProfilePage() {
         return null;
     }
 
-    const currentAvatar = avatarPreview || `https://placehold.co/128x128/e2e8f0/64748b?text=${(session?.user?.name ?? '?').charAt(0)}`;
+    const currentAvatar = avatarPreview ?? `https://placehold.co/128x128/e2e8f0/64748b?text=${(session?.user?.name ?? '?').charAt(0)}`;
 
     return (
         <div className="min-h-screen p-4 sm:p-8">
@@ -279,13 +277,12 @@ export default function ProfilePage() {
                             onClick={handleSubscriptionToggle} 
                             variant="secondary"
                             isLoading={isSubscriptionLoading}
-                            disabled={!isSubscriptionEnabled}
+                            disabled={!isSubscriptionEnabled || isSubscriptionLoading}
                             title={!isSubscriptionEnabled ? "Функция уведомлений недоступна" : ""}
                             >
                             {isSubscribed ? <BellOff size={20} className="mr-2"/> : <Bell size={20} className="mr-2"/>}
                             {isSubscribed ? 'Уведомления Вкл.' : 'Вкл. уведомления'}
                         </Button>
-                        {/* --- ИЗМЕНЕНИЕ: Добавлена кнопка выхода --- */}
                         <Button 
                             type="button" 
                             onClick={handleSignOut} 

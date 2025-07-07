@@ -9,17 +9,30 @@ import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 
 interface Message {
-    id: number;
-    role: 'user' | 'assistant';
-    content: string;
+    readonly id: number;
+    readonly role: 'user' | 'assistant';
+    readonly content: string;
 }
 
 interface AiAssistantWidgetProps {
-  isOpen: boolean;
-  onClose: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
 }
 
-const Lightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) => {
+interface LightboxProps {
+    readonly src: string;
+    readonly alt: string;
+    readonly onClose: () => void;
+}
+
+interface MessageContentProps {
+    readonly msg: Message;
+    readonly isLoading: boolean;
+    readonly onImageClick: (src: string) => void;
+}
+
+// Исправлена ошибка S6478: Компонент Lightbox вынесен за пределы родительского
+const Lightbox: React.FC<LightboxProps> = ({ src, alt, onClose }) => {
     const handleDownload = async () => {
         try {
             const response = await fetch(src);
@@ -43,7 +56,7 @@ const Lightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: ()
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4"
             onClick={onClose}
         >
             <motion.img
@@ -55,13 +68,63 @@ const Lightbox = ({ src, alt, onClose }: { src: string; alt: string; onClose: ()
                 onClick={(e) => e.stopPropagation()}
             />
             <div className="absolute top-4 right-4 flex gap-2">
-                <Button onClick={handleDownload} variant="secondary" className="!p-3 !rounded-full"><Download /></Button>
-                <a href={src} target="_blank" rel="noopener noreferrer">
-                    <Button variant="secondary" className="!p-3 !rounded-full"><ExternalLink /></Button>
+                <Button onClick={handleDownload} variant="secondary" className="!p-3 !rounded-full" aria-label="Скачать изображение"><Download /></Button>
+                {/* Исправлена ошибка S6827: Добавлен aria-label к ссылке */}
+                <a href={src} target="_blank" rel="noopener noreferrer" aria-label="Открыть в новой вкладке">
+                    {/* Исправлена ошибка TS2322: Убран некорректный проп 'as' */}
+                    <Button as="span" variant="secondary" className="!p-3 !rounded-full"><ExternalLink /></Button>
                 </a>
-                <Button onClick={onClose} variant="secondary" className="!p-3 !rounded-full"><X /></Button>
+                <Button onClick={onClose} variant="secondary" className="!p-3 !rounded-full" aria-label="Закрыть"><X /></Button>
             </div>
         </motion.div>
+    );
+};
+
+// Исправлена ошибка S6478: Компонент MessageContent вынесен за пределы родительского
+const MessageContent: React.FC<MessageContentProps> = ({ msg, isLoading, onImageClick }) => {
+    const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
+    const images: { alt: string, src: string }[] = [];
+    let textOnlyContent = msg.content;
+
+    let match;
+    while ((match = imageRegex.exec(msg.content)) !== null) {
+        images.push({ alt: match[1], src: match[2] });
+    }
+    textOnlyContent = textOnlyContent.replace(imageRegex, '').trim();
+
+    return (
+        <div className={`prose prose-sm max-w-full rounded-2xl p-3 ${msg.role === 'user' ? 'bg-brand-primary text-white prose-invert' : 'bg-brand-background text-brand-text-primary'}`}>
+            {textOnlyContent && (
+                 <ReactMarkdown rehypePlugins={[rehypeRaw]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" /> }}>
+                    {textOnlyContent}
+                 </ReactMarkdown>
+            )}
+            
+            {images.length > 0 && (
+                <div className="not-prose mt-2 flex flex-wrap gap-2">
+                    {images.map((image, index) => (
+                         // Исправлены ошибки S6847, S1082 и S6479: img обернут в button с уникальным ключом
+                         <button
+                            type="button"
+                            key={`${msg.id}-img-${index}`} 
+                            className="h-24 w-24 p-0 border-0 rounded-md cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+                            onClick={() => onImageClick(image.src)}
+                            aria-label={`Открыть изображение ${image.alt}`}
+                         >
+                            <img 
+                                src={image.src} 
+                                alt={image.alt} 
+                                className="w-full h-full object-cover rounded-md pointer-events-none"
+                             />
+                         </button>
+                    ))}
+                </div>
+            )}
+            
+            {isLoading && msg.role === 'assistant' && msg.content === '' && (
+                <span className="inline-block w-2 h-4 bg-current animate-ping ml-1" />
+            )}
+        </div>
     );
 };
 
@@ -92,10 +155,9 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
 
         const userMessage: Message = { id: Date.now(), role: 'user', content: input };
         
-        // --- ИСПРАВЛЕНИЕ: Готовим историю ПЕРЕД обновлением состояния ---
         const historyToSend = [...messages, userMessage]
-            .slice(-11, -1) // Берем до 10 последних сообщений, не включая текущее
-            .map(({ role, content }) => ({ role, content })); // Форматируем для API
+            .slice(-11, -1) 
+            .map(({ role, content }) => ({ role, content })); 
 
         const assistantMessageId = Date.now() + 1;
         setMessages(prev => [...prev, userMessage, { id: assistantMessageId, role: 'assistant', content: '' }]);
@@ -106,7 +168,6 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
             const response = await fetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // --- ИСПРАВЛЕНИЕ: Отправляем историю на сервер ---
                 body: JSON.stringify({ userQuery: input, history: historyToSend }),
             });
 
@@ -143,46 +204,6 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
             setIsLoading(false);
         }
     };
-    
-    const MessageContent = ({ msg }: { msg: Message }) => {
-        const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
-        const images: { alt: string, src: string }[] = [];
-        let textOnlyContent = msg.content;
-
-        let match;
-        while ((match = imageRegex.exec(msg.content)) !== null) {
-            images.push({ alt: match[1], src: match[2] });
-        }
-        textOnlyContent = textOnlyContent.replace(imageRegex, '').trim();
-
-        return (
-            <div className={`prose prose-sm max-w-full rounded-2xl p-3 ${msg.role === 'user' ? 'bg-brand-primary text-white prose-invert' : 'bg-brand-background text-brand-text-primary'}`}>
-                {textOnlyContent && (
-                     <ReactMarkdown rehypePlugins={[rehypeRaw]} components={{ a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" className="text-brand-primary hover:underline" /> }}>
-                        {textOnlyContent}
-                     </ReactMarkdown>
-                )}
-                
-                {images.length > 0 && (
-                    <div className="not-prose mt-2 flex flex-wrap gap-2">
-                        {images.map((image, index) => (
-                             <img 
-                                key={index} 
-                                src={image.src} 
-                                alt={image.alt} 
-                                className="h-24 w-24 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => setLightboxImage(image.src)}
-                             />
-                        ))}
-                    </div>
-                )}
-                
-                {isLoading && msg.role === 'assistant' && msg.content === '' && (
-                    <span className="inline-block w-2 h-4 bg-current animate-ping ml-1" />
-                )}
-            </div>
-        );
-    };
 
     return (
         <AnimatePresence>
@@ -193,7 +214,7 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: "100%", opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[450px] sm:max-h-[70vh] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-50 border border-brand-border"
+                    className="fixed inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[450px] sm:max-h-[70vh] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-[60] border border-brand-border"
                 >
                     <header className="flex items-center justify-between p-4 border-b border-brand-border flex-shrink-0">
                         <h3 className="text-xl font-bold text-brand-primary flex items-center gap-2">
@@ -208,7 +229,11 @@ export default function MurdomAiWidget({ isOpen, onClose }: AiAssistantWidgetPro
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-gray-200 text-gray-600 font-bold flex-shrink-0`}>
                                     {msg.role === 'assistant' ? <Sparkles size={16}/> : 'Я'}
                                 </div>
-                                <MessageContent msg={msg} />
+                                <MessageContent 
+                                    msg={msg} 
+                                    isLoading={isLoading}
+                                    onImageClick={setLightboxImage}
+                                />
                             </div>
                         ))}
                         <div ref={messagesEndRef} />

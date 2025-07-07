@@ -1,3 +1,5 @@
+export type CatStatus = "В приюте" | "Дома";
+
 export enum Role {
   VOLUNTEER = 'VOLUNTEER',
   MEDICAL_STAFF = 'MEDICAL_STAFF',
@@ -27,7 +29,6 @@ export interface Treatment {
   date: string;
   productName: string;
   createdAt: string;
-  // Добавляем 'revaccination' в возможные значения
   vaccinationStage?: 'first' | 'second' | 'revaccination' | null;
 }
 
@@ -49,6 +50,7 @@ export interface Cat {
   createdAt: string;
   updatedAt: string;
   notes?: string | null;
+  status: CatStatus;
   treatments?: Treatment[];
   documents?: Document[];
   creatorId: string | null;

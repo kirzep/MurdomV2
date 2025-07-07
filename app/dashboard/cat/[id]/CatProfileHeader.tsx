@@ -1,10 +1,10 @@
 // app/dashboard/cat/[id]/CatProfileHeader.tsx
 "use client";
 
-import { Cat } from "@/types";
+import { Cat, CatStatus } from "@/types";
 import { format } from "date-fns";
 import { ru } from 'date-fns/locale';
-import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle } from "lucide-react";
+import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle, Home, ArchiveRestore } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { getRevaccinationStatus, RevaccinationInfo } from "@/lib/revaccinationHelper";
 import { useEffect, useState } from "react";
@@ -15,6 +15,7 @@ interface CatProfileHeaderProps {
   onEdit: () => void;
   onDelete: () => void;
   onInfoClick: () => void;
+  onStatusChange: (status: CatStatus) => Promise<void>;
 }
 
 const pluralizeYears = (age: number) => {
@@ -23,12 +24,24 @@ const pluralizeYears = (age: number) => {
     return 'лет';
 };
 
-const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdit, onDelete, onInfoClick }) => {
+const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdit, onDelete, onInfoClick, onStatusChange }) => {
   const [alertInfo, setAlertInfo] = useState<RevaccinationInfo>({ status: null, dueDate: null, isOverdue: false, message: '' });
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   useEffect(() => {
     setAlertInfo(getRevaccinationStatus(cat));
   }, [cat]);
+
+  const handleStatusChange = async () => {
+    const newStatus: CatStatus = cat.status === 'В приюте' ? 'Дома' : 'В приюте';
+    const confirmMessage = `Вы уверены, что хотите изменить статус кошки "${cat.name}" на "${newStatus}"?`;
+    
+    if (window.confirm(confirmMessage)) {
+        setIsChangingStatus(true);
+        await onStatusChange(newStatus);
+        setIsChangingStatus(false);
+    }
+  };
 
   const getAge = (birthYear: number | null) => {
     if (!birthYear) return null;
@@ -74,6 +87,11 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
 
       <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md relative">
         <div className="hidden sm:flex absolute top-6 right-6 items-center gap-2 flex-shrink-0">
+            {canEdit && (
+              <Button onClick={handleStatusChange} variant="secondary" className="p-2 h-12 w-12 rounded-full" isLoading={isChangingStatus} title={cat.status === 'В приюте' ? 'Отправить домой' : 'Вернуть в приют'}>
+                {cat.status === 'В приюте' ? <Home size={28} /> : <ArchiveRestore size={28} />}
+              </Button>
+            )}
             <Button onClick={onInfoClick} variant="secondary" className="p-2 h-12 w-12 rounded-full">
                 <Info size={28} />
             </Button>
@@ -88,15 +106,18 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
               </>
             )}
         </div>
-        <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-4">
-          <img
-            src={avatarSrc}
-            alt={`Аватар ${cat.name}`}
-            className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-4 border-brand-primary-light flex-shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-              <h2 className="text-3xl sm:text-4xl font-bold text-brand-text-primary">{cat.name}</h2>
-              <div className="mt-2 flex flex-col sm:flex-row items-center justify-center sm:justify-start flex-wrap gap-x-4 gap-y-1 text-sm sm:text-base text-brand-text-secondary">
+        
+        <div className="grid grid-cols-[auto,1fr] items-center gap-x-4 sm:gap-x-6">
+            <img
+                src={avatarSrc}
+                alt={`Аватар ${cat.name}`}
+                className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-4 border-brand-primary-light flex-shrink-0"
+            />
+            <div className="min-w-0 text-left">
+                <h2 className="text-3xl sm:text-4xl font-bold text-brand-text-primary truncate" title={cat.name}>
+                    {cat.name}
+                </h2>
+                <div className="mt-2 flex items-center flex-wrap gap-x-4 gap-y-1 text-sm sm:text-base text-brand-text-secondary">
                   {ageString && (
                       <div className="flex items-center gap-2">
                           <Gift size={20} />
@@ -109,20 +130,30 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
                           {cat.arrivalDate ? format(new Date(cat.arrivalDate), 'd MMMM yy', { locale: ru }) : 'Дата не указана'}
                       </span>
                   </div>
-              </div>
-          </div>
+                </div>
+            </div>
         </div>
-        <div className="sm:hidden flex justify-center items-center gap-3 mt-4 pt-4 border-t border-brand-border">
-            <Button onClick={onInfoClick} variant="secondary" className="flex-1 py-3">
-                <Info size={22} className="mr-2"/> Инфо
+
+        <div className="sm:hidden grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-brand-border">
+            {canEdit && (
+                <Button onClick={handleStatusChange} variant="secondary" className="flex-col h-auto p-2" isLoading={isChangingStatus}>
+                    {cat.status === 'В приюте' ? <Home size={20} /> : <ArchiveRestore size={20} />}
+                    <span className="text-xs mt-1">{cat.status === 'В приюте' ? 'Домой' : 'В приют'}</span>
+                </Button>
+            )}
+            <Button onClick={onInfoClick} variant="secondary" className="flex-col h-auto p-2">
+                <Info size={20}/>
+                <span className="text-xs mt-1">Инфо</span>
             </Button>
             {canEdit && (
               <>
-                <Button onClick={onEdit} variant="secondary" className="flex-1 py-3">
-                    <Edit size={22} className="mr-2"/> Изменить
+                <Button onClick={onEdit} variant="secondary" className="flex-col h-auto p-2">
+                    <Edit size={20}/>
+                    <span className="text-xs mt-1">Изменить</span>
                 </Button>
-                <Button onClick={onDelete} variant="danger" className="p-3 h-auto w-auto">
-                    <Trash2 size={22} />
+                <Button onClick={onDelete} variant="danger" className="flex-col h-auto p-2">
+                    <Trash2 size={20}/>
+                    <span className="text-xs mt-1">Удалить</span>
                 </Button>
               </>
             )}

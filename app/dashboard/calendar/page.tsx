@@ -23,10 +23,15 @@ const EventPill: React.FC<{ event: CalendarEvent }> = ({ event }) => {
   
     return (
       <Link href={`/dashboard/cat/${event.catId}`} title={`${event.catName}: ${event.stageText}`}>
-        <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-semibold transition-colors ${colorClasses}`}>
-          <span className="truncate">{event.catName}</span>
-          {event.isProjected && <span className="font-bold" title="Прогнозируемое событие">!</span>}
+        {/* === ИЗМЕНЕНИЕ ЗДЕСЬ === */}
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold transition-colors ${colorClasses}`}>
+          {/* Добавляем min-w-0, чтобы truncate сработал */}
+          <div className="min-w-0 flex-1">
+            <p className="truncate">{event.catName}</p>
+          </div>
+          {event.isProjected && <span className="font-bold flex-shrink-0" title="Прогнозируемое событие">!</span>}
         </div>
+        {/* === КОНЕЦ ИЗМЕНЕНИЯ === */}
       </Link>
     );
 };
@@ -52,10 +57,12 @@ const EventRow: React.FC<{ event: CalendarEvent }> = ({ event }) => {
                 <p className="text-lg -mt-1">{format(event.date, 'd')}</p>
             </div>
             <img src={avatarSrc} alt={event.catName} className="w-9 h-9 rounded-full" />
-            <div className="flex-grow">
-                <p className="font-semibold text-gray-800">{event.catName}</p>
+            {/* === ИЗМЕНЕНИЕ ЗДЕСЬ === */}
+            <div className="flex-grow min-w-0">
+                <p className="font-semibold text-gray-800 truncate">{event.catName}</p>
                 <p className="text-xs text-gray-500">{event.stageText}</p>
             </div>
+            {/* === КОНЕЦ ИЗМЕНЕНИЯ === */}
         </Link>
     )
 }
@@ -188,7 +195,6 @@ export default function CalendarPage() {
 
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold capitalize text-gray-700">
-                    {/* ИЗМЕНЕНИЕ: Добавлен токен года yyyy */}
                     {viewMode === 'month' ? format(currentDate, "LLLL yyyy 'г.'", { locale: ru }) : format(currentDate, "yyyy 'год'")}
                 </h2>
                 <div className="flex gap-2">

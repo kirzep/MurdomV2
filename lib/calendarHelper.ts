@@ -24,12 +24,14 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const today = startOfDay(new Date());
 
-  cats.forEach(cat => {
+  // 👇 ФИЛЬТРУЕМ КОШЕК, ОСТАВЛЯЯ ТОЛЬКО ТЕХ, КТО В ПРИЮТЕ
+  const activeCats = cats.filter(cat => cat.status === 'В приюте');
+
+  activeCats.forEach(cat => {
     const allVaccinations = (cat.treatments ?? [])
       .filter(t => t.type === TreatmentType.VACCINATION && t.vaccinationStage)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // 1. Добавляем все реальные записи в календарь
     allVaccinations.forEach(v => {
       const stage = (v.vaccinationStage === 'revaccination' ? 'annual' : v.vaccinationStage) as 'first' | 'second' | 'annual';
       events.push({
@@ -45,7 +47,6 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
       });
     });
 
-    // 2. Прогнозируем следующее событие на основе прошлых
     const pastVaccinations = allVaccinations.filter(v => !isAfter(startOfDay(new Date(v.date)), today));
     
     const firstVaccination = pastVaccinations.find(v => v.vaccinationStage === 'first');
@@ -67,8 +68,7 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
             projectedStage = 'annual';
         }
     }
-
-    // Добавляем спрогнозированное событие, только если оно еще не "закрыто" реальной записью
+    
     if (projectedDate && projectedStage) {
         const hasMatchingRealEvent = allVaccinations.some(v => 
             v.vaccinationStage === projectedStage && 

@@ -7,7 +7,6 @@ import { X, Send } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Message } from '@/types';
 import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
 import Link from 'next/link';
 
 interface ChatWidgetProps {
@@ -78,7 +77,8 @@ export default function ChatWidget({ isOpen, onClose }: ChatWidgetProps) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[400px] sm:max-h-[600px] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-50"
+          // 👇 ИЗМЕНЕНИЕ ЗДЕСЬ: Увеличиваем z-index, чтобы он был выше футера 👇
+          className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[400px] sm:max-h-[600px] bg-brand-surface rounded-none sm:rounded-2xl shadow-2xl flex flex-col z-[60]"
         >
           <header className="flex items-center justify-between p-4 border-b border-brand-border flex-shrink-0">
             <h3 className="text-xl font-bold text-brand-primary">Общий чат</h3>

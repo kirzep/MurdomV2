@@ -3,7 +3,8 @@
 
 import { Cat } from "@/types";
 import { useState, useEffect } from "react";
-import { useDebounce } from 'use-debounce';
+import Button from "@/app/components/ui/Button";
+import { Save } from "lucide-react";
 
 interface NotesSectionProps {
   cat: Cat;
@@ -14,36 +15,36 @@ interface NotesSectionProps {
 const NotesSection: React.FC<NotesSectionProps> = ({ cat, onUpdate, canEdit }) => {
   const [notes, setNotes] = useState(cat.notes || '');
   const [isSaving, setIsSaving] = useState(false);
-  const [debouncedNotes] = useDebounce(notes, 1000);
-
-  useEffect(() => {
-    // Автосохранение работает только если есть права
-    if (!canEdit) return;
-
-    const saveNotes = async () => {
-      // Условие изменено, чтобы корректно сравнивать null и пустую строку
-      if (debouncedNotes !== (cat.notes || '')) {
-        setIsSaving(true);
-        await onUpdate({ notes: debouncedNotes });
-        setIsSaving(false);
-      }
-    };
-    saveNotes();
-  }, [debouncedNotes, cat.notes, onUpdate, canEdit]);
   
-  // Синхронизируем состояние, если пропсы изменились (например, после отмены редактирования)
+  // Отслеживаем, были ли внесены изменения
+  const isModified = notes !== (cat.notes || '');
+
+  // Синхронизируем состояние, если пропсы изменились
   useEffect(() => {
     setNotes(cat.notes || '');
   }, [cat.notes]);
+
+  const handleSave = async () => {
+    if (!isModified) return;
+    setIsSaving(true);
+    await onUpdate({ notes });
+    setIsSaving(false);
+  };
 
   return (
     <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-semibold text-brand-text-primary">Заметки</h3>
-        {isSaving && canEdit && <div className="text-sm text-brand-text-secondary flex items-center gap-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-primary"></div>
-          Сохранение...
-        </div>}
+        {canEdit && (
+            <Button 
+              onClick={handleSave} 
+              disabled={!isModified || isSaving} 
+              isLoading={isSaving}
+            >
+              <Save size={20} className="mr-2"/>
+              Сохранить
+            </Button>
+        )}
       </div>
       <textarea
         value={notes}

@@ -3,8 +3,7 @@ import { NextResponse } from 'next/server';
 import webPush from 'web-push';
 import prisma from '@/lib/prisma';
 import { getRevaccinationStatus } from '@/lib/revaccinationHelper';
-// ИСПРАВЛЕНИЕ: Добавляем импорт Treatment для получения типа vaccinationStage
-import { Cat, Role as AppRole, Treatment as AppTreatment, TreatmentType as AppTreatmentType } from '@/types'; 
+import { Cat, Role as AppRole, Treatment as AppTreatment, TreatmentType as AppTreatmentType, CatStatus } from '@/types'; 
 
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT) {
     webPush.setVapidDetails(
@@ -16,61 +15,91 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env
     console.error("VAPID keys are not configured. Push notifications will not work.");
 }
 
-async function findAndSendNotifications() {
-    const catsFromDb = await prisma.cat.findMany({
-        include: { 
-            treatments: true, 
-            creator: true 
-        }
-    });
+/**
+ * Преобразует данные о кошке из Prisma в тип, используемый в приложении.
+ */
+function toAppCat(catFromDb: any): Cat {
+    return {
+        ...catFromDb,
+        status: catFromDb.status as CatStatus,
+        arrivalDate: catFromDb.arrivalDate?.toISOString() ?? null,
+        createdAt: catFromDb.createdAt.toISOString(),
+        updatedAt: catFromDb.updatedAt.toISOString(),
+        creator: catFromDb.creator ? {
+            ...catFromDb.creator,
+            role: catFromDb.creator.role as AppRole,
+        } : null,
+        treatments: catFromDb.treatments.map((t: any) => ({
+            ...t,
+            date: t.date.toISOString(),
+            createdAt: t.createdAt.toISOString(),
+            type: t.type as AppTreatmentType,
+            vaccinationStage: t.vaccinationStage as AppTreatment['vaccinationStage'],
+        }))
+    };
+}
 
-    const notificationsToSend = new Map<string, { catName: string; dueDate: Date; message: string }[]>();
-    
-    for (const catDataFromDb of catsFromDb) {
-        
-        const appCat: Cat = {
-            ...catDataFromDb,
-            arrivalDate: catDataFromDb.arrivalDate?.toISOString() ?? null,
-            createdAt: catDataFromDb.createdAt.toISOString(),
-            updatedAt: catDataFromDb.updatedAt.toISOString(),
-            creator: catDataFromDb.creator ? {
-                ...catDataFromDb.creator,
-                role: catDataFromDb.creator.role as AppRole,
-            } : null,
-            treatments: catDataFromDb.treatments.map(t => ({
-                ...t,
-                date: t.date.toISOString(),
-                createdAt: t.createdAt.toISOString(),
-                type: t.type as AppTreatmentType,
-                // **ИСПРАВЛЕНИЕ:** Явно приводим тип для vaccinationStage
-                vaccinationStage: t.vaccinationStage as AppTreatment['vaccinationStage'],
-            }))
-        };
-        
-        const { status, dueDate, message } = getRevaccinationStatus(appCat);
-
-        if (status && dueDate) {
-            const userId = appCat.creatorId;
-            if (userId) {
-                if (!notificationsToSend.has(userId)) {
-                    notificationsToSend.set(userId, []);
-                }
-                notificationsToSend.get(userId)!.push({
-                    catName: appCat.name,
-                    dueDate: dueDate,
-                    message: message
-                });
+/**
+ * Вспомогательная функция для отправки уведомлений по списку подписок.
+ * Это уменьшает вложенность в основной функции.
+ */
+async function sendPayloadToSubscriptions(subscriptions: any[], payload: string): Promise<number> {
+    let sentCount = 0;
+    for (const sub of subscriptions) {
+        try {
+            const subscriptionObject = {
+                endpoint: sub.endpoint,
+                keys: { p256dh: sub.p256dh, auth: sub.auth }
+            };
+            await webPush.sendNotification(subscriptionObject, payload);
+            sentCount++;
+        } catch (error: any) {
+            if (error.statusCode === 410 || error.statusCode === 404) {
+                // Если подписка истекла или не найдена, удаляем её из базы.
+                await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(e => console.error(e));
+            } else {
+                console.error('Failed to send notification:', error);
             }
         }
     }
+    return sentCount;
+}
+
+/**
+ * Основная функция, которая находит и отправляет уведомления.
+ * Теперь она менее сложная, так как логика отправки вынесена.
+ */
+async function findAndSendNotifications() {
+    const catsFromDb = await prisma.cat.findMany({
+        include: { treatments: true, creator: true }
+    });
+
+    const appCats = catsFromDb.map(toAppCat);
     
-    let sentCount = 0;
+    const notificationsByUser = appCats.reduce((acc, cat) => {
+        const { status, message } = getRevaccinationStatus(cat);
+        if (status && cat.creatorId) {
+            if (!acc[cat.creatorId]) {
+                acc[cat.creatorId] = [];
+            }
+            acc[cat.creatorId].push({ catName: cat.name, message });
+        }
+        return acc;
+    }, {} as Record<string, { catName: string; message: string }[]>);
+
+    let totalSentCount = 0;
     
-    for (const [userId, alerts] of Array.from(notificationsToSend.entries())) {
-        const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
-        
-        const groupedByMessage = alerts.reduce((acc, alert) => {
-            (acc[alert.message] = acc[alert.message] || []).push(alert.catName);
+    for (const userId in notificationsByUser) {
+        const userAlerts = notificationsByUser[userId];
+        const userSubscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
+
+        if (userSubscriptions.length === 0) continue;
+
+        const groupedByMessage = userAlerts.reduce((acc, alert) => {
+            if (!acc[alert.message]) {
+                acc[alert.message] = [];
+            }
+            acc[alert.message].push(alert.catName);
             return acc;
         }, {} as Record<string, string[]>);
 
@@ -81,28 +110,13 @@ async function findAndSendNotifications() {
                 icon: '/icons/icon-192x192.png',
                 data: { url: '/dashboard' }
             });
-
-            for (const sub of subscriptions) {
-                try {
-                    const subscriptionObject = {
-                        endpoint: sub.endpoint,
-                        keys: { p256dh: sub.p256dh, auth: sub.auth }
-                    };
-                    await webPush.sendNotification(subscriptionObject, payload);
-                    sentCount++;
-                } catch (error: any) {
-                    if (error.statusCode === 410 || error.statusCode === 404) {
-                        await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch((e: any) => console.error(e));
-                    } else {
-                        console.error('Failed to send notification:', error);
-                    }
-                }
-            }
+            totalSentCount += await sendPayloadToSubscriptions(userSubscriptions, payload);
         }
     }
 
-    return sentCount;
+    return totalSentCount;
 }
+
 
 export async function GET() {
     if (!process.env.VAPID_PUBLIC_KEY) {

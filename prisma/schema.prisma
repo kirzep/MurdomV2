@@ -98,6 +98,7 @@ model Cat {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   notes       String?
+  status      String      @default("В приюте")
   creatorId   String?
   creator     User?      @relation("Creator", fields: [creatorId], references: [id], onDelete: SetNull) // Уважаем onDelete: SetNull
   treatments  Treatment[]
