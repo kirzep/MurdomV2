@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff, LogOut } from 'lucide-react';
+import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff, LogOut, Zap, Send } from 'lucide-react';
 import Link from 'next/link';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -33,17 +33,24 @@ export default function ProfilePage() {
     const { data: session, status, update } = useSession();
     const router = useRouter();
 
+    // Состояния для профиля
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState('');
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     
+    // Состояния для подписок и настроек
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true);
     const [isSubscriptionEnabled, setIsSubscriptionEnabled] = useState(true);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    // 👇 НОВЫЕ СОСТОЯНИЯ ДЛЯ ПАНЕЛИ РАССЫЛКИ 👇
+    const [broadcastTitle, setBroadcastTitle] = useState('');
+    const [broadcastMessage, setBroadcastMessage] = useState('');
+    const [isBroadcasting, setIsBroadcasting] = useState(false);
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
     const getServiceWorkerRegistration = useCallback((): Promise<ServiceWorkerRegistration> => {
         return new Promise((resolve, reject) => {
@@ -78,11 +85,10 @@ export default function ProfilePage() {
     }, []);
 
     useEffect(() => {
-        if (session?.user) {
-            setName(session.user.name ?? '');
-            const imagePath = session.user.image ? `${appUrl}${session.user.image}` : null;
-            setAvatarPreview(imagePath);
-        }
+        setName(session?.user.name ?? '');
+        const imagePath = session?.user.image ? `${appUrl}${session.user.image}` : null;
+        setAvatarPreview(imagePath);
+        
         if (status === 'authenticated') {
             if (!('serviceWorker' in navigator && 'PushManager' in window)) {
                 setIsSubscriptionEnabled(false);
@@ -99,6 +105,43 @@ export default function ProfilePage() {
                 .finally(() => setIsSubscriptionLoading(false));
         }
     }, [session, status, appUrl, getServiceWorkerRegistration]);
+    
+    // 👇 НОВАЯ ФУНКЦИЯ ДЛЯ ОТПРАВКИ РАССЫЛКИ 👇
+    const handleBroadcast = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+            alert('Заголовок и сообщение не могут быть пустыми.');
+            return;
+        }
+
+        setIsBroadcasting(true);
+        try {
+            const response = await fetch('/api/push/broadcast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: broadcastTitle,
+                    message: broadcastMessage,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error ?? 'Не удалось выполнить рассылку.');
+            }
+            
+            alert('Рассылка успешно отправлена!');
+            setBroadcastTitle('');
+            setBroadcastMessage('');
+
+        } catch (error) {
+            console.error('Broadcast error:', error);
+            alert((error as Error).message);
+        } finally {
+            setIsBroadcasting(false);
+        }
+    };
+
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -209,8 +252,8 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen p-4 sm:p-8">
-            <div className="max-w-2xl mx-auto">
-                <div className="mb-8">
+            <div className="max-w-2xl mx-auto space-y-8">
+                <div className="mb-0">
                      <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
                         <ArrowLeft size={18} />
                         Вернуться в архив
@@ -293,6 +336,39 @@ export default function ProfilePage() {
                         </Button>
                     </div>
                 </form>
+
+                {/* 👇 НОВАЯ ПАНЕЛЬ ДЛЯ РАЗРАБОТЧИКА 👇 */}
+                {session?.user.role === Role.DEVELOPER && (
+                    <div className="bg-red-900/10 border border-red-900/20 p-6 rounded-2xl shadow-lg">
+                        <h3 className="text-xl font-bold text-red-800 mb-4">Панель разработчика</h3>
+                        <form onSubmit={handleBroadcast} className="space-y-4">
+                            <div>
+                                <label htmlFor="broadcast-title" className="block text-sm font-medium text-brand-text-secondary mb-1">Заголовок рассылки</label>
+                                <Input 
+                                    id="broadcast-title"
+                                    value={broadcastTitle}
+                                    onChange={(e) => setBroadcastTitle(e.target.value)}
+                                    placeholder="🎉 Вышло обновление!"
+                                    required
+                                />
+                            </div>
+                             <div>
+                                <label htmlFor="broadcast-message" className="block text-sm font-medium text-brand-text-secondary mb-1">Сообщение рассылки</label>
+                                <textarea
+                                    id="broadcast-message"
+                                    value={broadcastMessage}
+                                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                                    placeholder="Опишите, что нового появилось в приложении..."
+                                    className="w-full h-24 p-3 bg-brand-background border-brand-border border rounded-lg resize-y focus:ring-2 focus:ring-brand-primary outline-none transition-shadow"
+                                    required
+                                />
+                            </div>
+                            <Button type="submit" isLoading={isBroadcasting} variant="danger">
+                                <Send size={20} className="mr-2"/>Отправить всем
+                            </Button>
+                        </form>
+                    </div>
+                )}
             </div>
         </div>
     );
