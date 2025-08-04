@@ -1,8 +1,9 @@
 // app/dashboard/cat/[id]/CatProfileView.tsx
 "use client";
 
-import { useState, FormEvent, ChangeEvent, useRef } from "react";
-import { Cat, Role, Document as DocType, TreatmentType, AuditLog as AuditLogType, CatStatus } from "@/types";
+import { useState, FormEvent, ChangeEvent } from "react";
+// === ИЗМЕНЕНИЕ: Убрали Role из импорта ===
+import { Cat, Document as DocType, TreatmentType, AuditLog as AuditLogType, CatStatus } from "@/types"; 
 import CatProfileHeader from "./CatProfileHeader";
 import NotesSection from "./NotesSection";
 import TreatmentsSection from "./TreatmentsSection";
@@ -14,12 +15,8 @@ import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import AuditLogModal from './AuditLogModal';
 import ScanDocumentModal from "./ScanDocumentModal";
-import { CatReportTemplate } from "./CatReportTemplate";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { FileUp } from "lucide-react";
 import { useRouter } from "next/navigation";
-
 
 const treatmentMeta: Record<TreatmentType, { name: string }> = {
   [TreatmentType.WORMS]: { name: 'Дегельминтизация' },
@@ -41,11 +38,10 @@ interface CatProfileViewProps {
     onDataChange: () => void;
 }
 
-
 export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }: CatProfileViewProps) {
     const router = useRouter();
-    const reportRef = useRef<HTMLDivElement>(null);
-    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    
+    // === ИЗМЕНЕНИЕ: Убрали состояния и функции для экспорта PDF, так как они теперь в page.tsx ===
     
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
@@ -95,20 +91,6 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
         }
     };
     
-    const handleStatusChange = async (newStatus: CatStatus) => {
-        try {
-            await fetch(`/api/cats/${cat.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            onDataChange();
-        } catch (error) {
-            console.error("Failed to update status:", error);
-            alert("Не удалось изменить статус.");
-        }
-    };
-
     const handleDeleteCat = async () => {
         if (window.confirm(`Вы уверены, что хотите удалить профиль кошки "${cat.name}"? Это действие необратимо.`)) {
             try {
@@ -195,53 +177,8 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
         setIsAddDocModalOpen(true);
     };
 
-    const handleExportReport = async () => {
-        if (!reportRef.current) return;
-        setIsGeneratingReport(true);
-        try {
-            const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-            const imageDocs = cat.documents?.filter(doc => doc.fileType.startsWith('image/')) || [];
-            for (const doc of imageDocs) {
-                pdf.addPage();
-                pdf.setFontSize(16);
-                pdf.setTextColor(100);
-                pdf.text(doc.fileName, 15, 20, { maxWidth: pdfWidth - 30 });
-                const img = new Image();
-                img.crossOrigin = "anonymous";
-                img.src = `${process.env.NEXT_PUBLIC_APP_URL || ''}${doc.filePath}`;
-                await new Promise(resolve => { img.onload = resolve; });
-                const margin = 15;
-                const pageContentHeight = pdfHeight - 40;
-                const imgWidth = img.naturalWidth;
-                const imgHeight = img.naturalHeight;
-                const ratio = imgWidth / imgHeight;
-                let newWidth = pdfWidth - margin * 2;
-                let newHeight = newWidth / ratio;
-                if (newHeight > pageContentHeight) {
-                    newHeight = pageContentHeight;
-                    newWidth = newHeight * ratio;
-                }
-                const x = (pdfWidth - newWidth) / 2;
-                const y = 30;
-                pdf.addImage(img, 'JPEG', x, y, newWidth, newHeight, undefined, 'FAST');
-            }
-            pdf.save(`Карта - ${cat.name}.pdf`);
-        } catch (error) {
-            console.error("Ошибка при создании PDF:", error);
-            alert("Не удалось создать отчет. Попробуйте снова.");
-        } finally {
-            setIsGeneratingReport(false);
-        }
-    };
-
     return (
         <>
-            {/* All modals remain here */}
             <ScanDocumentModal isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} onScanComplete={handleScanComplete} />
             <DocumentViewerModal 
                 doc={viewingDoc} 
@@ -333,7 +270,6 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
                     onEdit={() => setIsEditModalOpen(true)}
                     onDelete={handleDeleteCat}
                     onInfoClick={() => setIsLogModalOpen(true)}
-                    onStatusChange={handleStatusChange}
                 />
                 <div className="grid grid-cols-1 gap-6">
                     <NotesSection cat={cat} onUpdate={handleNotesUpdate} canEdit={canEdit} />
@@ -348,10 +284,6 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
                         onSingleDelete={handleDeleteSingleDocument}
                     />
                 </div>
-            </div>
-            
-            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-                <CatReportTemplate ref={reportRef} cat={cat} />
             </div>
         </>
     );

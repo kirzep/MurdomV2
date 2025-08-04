@@ -2,12 +2,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
-import { Cat, Role } from '@/types';
+import { Cat } from '@/types';
 import Spinner from '@/app/components/ui/Spinner';
 import Button from '@/app/components/ui/Button';
 import { Upload, Trash2, Download, Star, X, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Portal from '@/app/components/ui/Portal'; // === ИМПОРТИРУЕМ ПОРТАЛ ===
+import Portal from '@/app/components/ui/Portal';
+import useLongPress from '@/hooks/useLongPress';
 
 interface Photo {
     id: string;
@@ -27,13 +28,13 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
     const [isUploading, setIsUploading] = useState(false);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
-
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
     
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
 
     const fetchPhotos = useCallback(async () => {
+        setIsLoading(true);
         try {
             const res = await fetch(`/api/cats/${cat.id}/photos`);
             const data = await res.json();
@@ -58,27 +59,26 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
     const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
         setIsUploading(true);
-
         const files = Array.from(e.target.files);
         const uploadPromises = files.map(file => {
             const formData = new FormData();
             formData.append('file', file);
             return fetch('/api/upload', { method: 'POST', body: formData }).then(res => res.json());
         });
-
         try {
             const uploadResults = await Promise.all(uploadPromises);
-            const filePaths = uploadResults.map(result => result.filePath);
-            
-            await fetch(`/api/cats/${cat.id}/photos`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filePaths }),
-            });
-            await fetchPhotos();
-            onDataChange();
+            const filePaths = uploadResults.map(result => result.filePath).filter(Boolean);
+            if (filePaths.length > 0) {
+                 await fetch(`/api/cats/${cat.id}/photos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filePaths }),
+                });
+                await fetchPhotos();
+                onDataChange();
+            }
         } catch (error) {
-            alert("Ошибка загрузки файлов.");
+            alert(`Ошибка загрузки файлов: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
         } finally {
             setIsUploading(false);
         }
@@ -88,16 +88,24 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
         await fetch(`/api/cats/${cat.id}/photos/${photoId}`, { method: 'PATCH' });
         await fetchPhotos();
         onDataChange();
+        setViewerOpen(false);
     };
     
     const handleDelete = async (photoIds: string[]) => {
         if (confirm(`Вы уверены, что хотите удалить ${photoIds.length} фото?`)) {
-            await fetch(`/api/cats/${cat.id}/photos`, {
+            const res = await fetch(`/api/cats/${cat.id}/photos`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: photoIds }),
             });
+
+            if (!res.ok) {
+                 const { error } = await res.json();
+                 alert(`Не удалось удалить: ${error}`);
+            }
+
             setSelectedPhotos([]);
+            setIsSelectionMode(false);
             await fetchPhotos();
         }
     };
@@ -111,7 +119,30 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
         document.body.removeChild(link);
     };
 
-    const toggleSelection = (photoId: string) => {
+    const handleDownloadSelected = () => {
+        const selectedFilePaths = photos
+            .filter(p => selectedPhotos.includes(p.id))
+            .map(p => p.filePath);
+
+        selectedFilePaths.forEach((filePath, index) => {
+            setTimeout(() => {
+                 const link = document.createElement('a');
+                 link.href = `${appUrl}${filePath}`;
+                 link.download = filePath.split('/').pop() || 'photo.jpg';
+                 document.body.appendChild(link);
+                 link.click();
+                 document.body.removeChild(link);
+            }, index * 300);
+        });
+    };
+    
+    const handleStartSelection = (photoId: string) => {
+        if (!canEdit) return;
+        setIsSelectionMode(true);
+        setSelectedPhotos([photoId]);
+    };
+
+    const handleToggleSelection = (photoId: string) => {
         setSelectedPhotos(prev => 
             prev.includes(photoId) ? prev.filter(id => id !== photoId) : [...prev, photoId]
         );
@@ -120,14 +151,30 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
     if (isLoading) return <div className="h-[50vh] flex items-center justify-center"><Spinner /></div>;
 
     return (
-        <div className="p-4 md:p-6">
+        <div className="p-4 md:p-6 min-h-[50vh]">
             <AnimatePresence>
                 {isSelectionMode && (
-                     <motion.div initial={{y: -20, opacity: 0}} animate={{y: 0, opacity: 1}} exit={{y: -20, opacity: 0}} className="flex justify-between items-center mb-4 p-3 bg-indigo-50 rounded-lg">
-                        <span className="font-semibold">{selectedPhotos.length} фото выбрано</span>
-                        <div className="flex gap-2">
-                            <Button variant="secondary" onClick={() => setSelectedPhotos([])}>Отменить</Button>
-                            <Button variant="danger" onClick={() => handleDelete(selectedPhotos)}>Удалить</Button>
+                     <motion.div
+                        initial={{ y: "120%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "120%" }}
+                        className="fixed bottom-24 inset-x-4 max-w-md mx-auto z-50"
+                     >
+                        <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
+                            <Button onClick={() => setIsSelectionMode(false)} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
+                                <X size={24}/>
+                            </Button>
+                            <span className="font-semibold text-sm">Выбрано: {selectedPhotos.length}</span>
+                            <div className="flex gap-2">
+                                <Button onClick={handleDownloadSelected} variant="secondary" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
+                                    <Download size={24} className="sm:mr-2"/>
+                                    <span className="hidden sm:inline">Скачать</span>
+                                </Button>
+                                <Button onClick={() => handleDelete(selectedPhotos)} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
+                                    <Trash2 size={24} className="sm:mr-2"/>
+                                    <span className="hidden sm:inline">Удалить</span>
+                                </Button>
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -141,45 +188,19 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
                     </label>
                 )}
                 {photos.map((photo, index) => (
-                    <motion.div 
-                        key={photo.id} 
-                        layout
-                        initial={{scale: 0.8, opacity: 0}}
-                        animate={{scale: 1, opacity: 1}}
-                        className="relative aspect-square rounded-lg overflow-hidden group"
-                        onClick={() => {
-                            if (isSelectionMode) {
-                                toggleSelection(photo.id);
-                            } else {
-                                setActiveIndex(index);
-                                setViewerOpen(true);
-                            }
-                        }}
-                    >
-                        <img src={`${appUrl}${photo.filePath}`} alt={`Фото кошки ${index + 1}`} className="w-full h-full object-cover"/>
-                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"/>
-                        {photo.isAvatar && <Star size={20} className="absolute top-2 right-2 text-yellow-300 fill-yellow-300"/>}
-                        {isSelectionMode && (
-                             <div className="absolute top-2 left-2">
-                                <CheckCircle2 size={24} className={`${selectedPhotos.includes(photo.id) ? 'text-blue-500 fill-white' : 'text-white/70'}`}/>
-                            </div>
-                        )}
-                        {!isSelectionMode && canEdit && (
-                            <Button 
-                                variant="secondary"
-                                onClick={(e) => {e.stopPropagation(); handleSetAvatar(photo.id)}}
-                                className="absolute bottom-2 right-2 !p-2 !h-8 !w-8 !rounded-full opacity-0 group-hover:opacity-100"
-                                disabled={photo.isAvatar}
-                                title="Сделать аватаром"
-                            >
-                                <Star size={16}/>
-                            </Button>
-                        )}
-                    </motion.div>
+                    <PhotoItem
+                        key={photo.id}
+                        photo={photo}
+                        index={index}
+                        isSelected={selectedPhotos.includes(photo.id)}
+                        isSelectionMode={isSelectionMode}
+                        onStartSelection={handleStartSelection}
+                        onToggleSelection={handleToggleSelection}
+                        onOpenViewer={() => { setActiveIndex(index); setViewerOpen(true); }}
+                    />
                 ))}
             </div>
             
-            {/* === ИЗМЕНЕНИЕ ЗДЕСЬ: Оборачиваем модальное окно в Portal === */}
             <Portal>
                 <AnimatePresence>
                 {viewerOpen && (
@@ -191,13 +212,53 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
                             <Button variant="secondary" onClick={() => setViewerOpen(false)} className="!p-3 !rounded-full"><X/></Button>
                         </div>
                         <div className="flex-grow flex items-center justify-center p-4">
-                            <img src={`${appUrl}${photos[activeIndex].filePath}`} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()}/>
+                             <img src={`${appUrl}${photos[activeIndex].filePath}`} alt={`Фото ${cat.name} ${activeIndex + 1}`} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()}/>
                         </div>
                     </motion.div>
                 )}
                 </AnimatePresence>
             </Portal>
         </div>
+    );
+};
+
+// === ИЗМЕНЕНИЕ: Обертка теперь button, а не div ===
+const PhotoItem = ({ photo, index, isSelected, isSelectionMode, onStartSelection, onToggleSelection, onOpenViewer }: any) => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    
+    const longPressEvents = useLongPress(
+        () => onStartSelection(photo.id),
+        () => isSelectionMode ? onToggleSelection(photo.id) : onOpenViewer(),
+        { delay: 500 }
+    );
+
+    return (
+        <motion.button 
+            type="button"
+            layout
+            initial={{scale: 0.8, opacity: 0}}
+            animate={{scale: 1, opacity: 1}}
+            className={`relative aspect-square rounded-lg overflow-hidden group cursor-pointer border-2 ${isSelected ? 'border-blue-500' : 'border-transparent'}`}
+            {...longPressEvents}
+        >
+            <div className={`transition-opacity duration-200 ${isSelectionMode ? 'opacity-60' : 'opacity-100'}`}>
+                {/* === ИЗМЕНЕНИЕ: Добавлен alt-текст === */}
+                <img src={`${appUrl}${photo.filePath}`} alt={`Фото ${index + 1}`} className="w-full h-full object-cover"/>
+            </div>
+
+            <AnimatePresence>
+            {isSelectionMode && (
+                <motion.div
+                    initial={{scale:0.5, opacity:0}} animate={{scale:1, opacity:1}} exit={{scale:0.5, opacity:0}}
+                    className="absolute inset-0 flex items-center justify-center bg-blue-500/20"
+                >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-white/80 border-2'}`}>
+                        {isSelected && <CheckCircle2 size={24} className="text-white"/>}
+                    </div>
+                </motion.div>
+            )}
+            </AnimatePresence>
+        </motion.button>
     );
 };
 

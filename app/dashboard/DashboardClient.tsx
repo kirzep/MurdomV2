@@ -8,7 +8,7 @@ import { Cat, CatStatus, Role } from '@/types';
 import CatCard from './CatCard';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Search, Plus, X, Trash2, ArchiveRestore } from 'lucide-react';
+import { Search, Plus, X, Trash2 } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -26,7 +26,18 @@ const containerVariants = {
   visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
-const CURRENT_APP_VERSION = '2.2.1'; // Версия до введения встряхивания
+const CURRENT_APP_VERSION = '2.3.0'; // Обновляем версию
+
+// === НОВЫЙ КОМПОНЕНТ ДЛЯ КНОПОК ФИЛЬТРА ===
+const FilterButton = ({ icon, label, isActive, onClick }: { icon: string; label: string; isActive: boolean; onClick: () => void; }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-2 flex items-center gap-2 rounded-full font-semibold transition-colors text-sm ${isActive ? 'bg-brand-primary text-white' : 'bg-brand-surface text-brand-text-secondary hover:bg-brand-border'}`}
+    >
+        <img src={icon} alt="" className="w-5 h-5" />
+        {label}
+    </button>
+);
 
 export default function DashboardClient({ loadingIcons }: { loadingIcons: string[] }) {
   const { data: session, status } = useSession();
@@ -45,28 +56,18 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   
   const [activeFilter, setActiveFilter] = useState<CatStatus>('В приюте');
-  const [pageTitle, setPageTitle] = useState('В приюте');
   
   const canEdit = session?.user.role !== Role.VOLUNTEER;
   const canUseAiAssistant = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON || session?.user.role === Role.DEVELOPER;
-    
-  useEffect(() => {
-    setPageTitle(activeFilter === 'В приюте' ? 'В приюте' : 'Архив: Дома');
-  }, [activeFilter]);
 
-  const { inShelterCats, atHomeCats } = useMemo(() => {
-    const sortedCats = [...cats].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const filteredByName = !debouncedSearchQuery 
-        ? sortedCats 
-        : sortedCats.filter(cat => cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+  const filteredCats = useMemo(() => {
+    const sorted = [...cats].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const searched = !debouncedSearchQuery 
+        ? sorted 
+        : sorted.filter(cat => cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+    return searched.filter(cat => cat.status === activeFilter);
+  }, [cats, debouncedSearchQuery, activeFilter]);
 
-    return {
-      inShelterCats: filteredByName.filter(cat => cat.status === 'В приюте'),
-      atHomeCats: filteredByName.filter(cat => cat.status === 'Дома'),
-    };
-  }, [cats, debouncedSearchQuery]);
-
-  const currentCats = activeFilter === 'В приюте' ? inShelterCats : atHomeCats;
 
   const vaccinationAlerts = useMemo(() => {
     return cats
@@ -176,7 +177,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
                 <div className="flex items-center justify-between gap-4">
                     <h1 className="text-xl md:text-2xl font-bold text-brand-primary flex items-center gap-2">
                       <img src="/icons/android-chrome-512x512.png" alt="Логотип" className="h-7 w-7" />
-                      <span className="hidden sm:inline">{pageTitle}</span>
                     </h1>
                     <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg">
                         <Input 
@@ -199,15 +199,29 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
         </header>
           
         <main className="container mx-auto p-4">
+            {/* === НОВЫЙ БЛОК ФИЛЬТРОВ === */}
+            <div className="flex justify-center gap-2 mb-6">
+                <FilterButton
+                    icon="/assets/icons/archive_sections/archive.png"
+                    label="В приюте"
+                    isActive={activeFilter === 'В приюте'}
+                    onClick={() => setActiveFilter('В приюте')}
+                />
+                <FilterButton
+                    icon="/assets/icons/archive_sections/home.png"
+                    label="Дома"
+                    isActive={activeFilter === 'Дома'}
+                    onClick={() => setActiveFilter('Дома')}
+                />
+                <FilterButton
+                    icon="/assets/icons/archive_sections/dead.png"
+                    label="На радуге"
+                    isActive={activeFilter === 'Умерли'}
+                    onClick={() => setActiveFilter('Умерли')}
+                />
+            </div>
+           
            {activeFilter === 'В приюте' && <RevaccinationAlerts alerts={vaccinationAlerts} onClick={() => setIsAlertsModalOpen(true)} />}
-
-           {activeFilter === 'Дома' && (
-                 <div className="mb-4">
-                    <Button onClick={() => setActiveFilter('В приюте')} variant='secondary'>
-                        <ArchiveRestore size={16} className="mr-2"/> Вернуться в основной архив
-                    </Button>
-                 </div>
-            )}
             
             <motion.div 
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
@@ -215,7 +229,7 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
               initial="hidden"
               animate="visible"
             >
-                {currentCats.length > 0 ? currentCats.map(cat => (
+                {filteredCats.length > 0 ? filteredCats.map(cat => (
                     <CatCard 
                         key={cat.id} 
                         cat={cat}
@@ -227,7 +241,7 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
                 )) : (
                     <div className="col-span-full text-center py-16 text-gray-500">
                         <p className="font-semibold text-lg">Кошки не найдены</p>
-                        <p>В категории "{activeFilter}" нет кошек, соответствующих вашему запросу.</p>
+                        <p>В этой категории пока нет записей.</p>
                     </div>
                 )}
             </motion.div>
@@ -237,7 +251,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
           onChatClick={() => setIsChatOpen(true)}
           onAiClick={() => setIsAiAssistantOpen(true)}
           canUseAi={canUseAiAssistant}
-          onHomeArchiveClick={() => setActiveFilter('Дома')}
         />
 
         <AnimatePresence>

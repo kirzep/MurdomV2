@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '@/app/components/ui/Modal';
 import Input from '@/app/components/ui/Input';
 import Button from '@/app/components/ui/Button';
-import { Cat } from '@/types';
+import { Cat, CatStatus } from '@/types';
 
 interface EditCatModalProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
   const [name, setName] = useState(cat.name);
   const [arrivalDate, setArrivalDate] = useState(cat.arrivalDate ? cat.arrivalDate.split('T')[0] : '');
   const [birthYear, setBirthYear] = useState(cat.birthYear ? cat.birthYear.toString() : '');
+  const [status, setStatus] = useState<CatStatus>(cat.status); // === НОВОЕ СОСТОЯНИЕ ===
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   
   const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +29,7 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
       setName(cat.name);
       setArrivalDate(cat.arrivalDate ? cat.arrivalDate.split('T')[0] : '');
       setBirthYear(cat.birthYear ? cat.birthYear.toString() : '');
+      setStatus(cat.status); // === ОБНОВЛЯЕМ СТАТУС ===
     }
   }, [cat]);
 
@@ -41,6 +43,7 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
         name,
         arrivalDate: arrivalDate ? new Date(arrivalDate).toISOString() : null,
         birthYear: birthYear ? parseInt(birthYear) : null,
+        status: status, // === ДОБАВЛЯЕМ СТАТУС В ЗАПРОС ===
       };
 
       if (avatarFile) {
@@ -49,7 +52,6 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
         const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok) throw new Error('Ошибка загрузки аватара');
-        // Посылаем специальное поле, чтобы API знало, что нужно создать новую запись в галерее
         updatedData.newAvatarPath = uploadData.filePath;
       }
       
@@ -75,6 +77,21 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
           <label className="block text-sm font-medium text-brand-text-secondary mb-1">Имя кошки*</label>
           <Input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
+        
+        {/* === НОВЫЙ БЛОК ДЛЯ СТАТУСА === */}
+        <div>
+          <label className="block text-sm font-medium text-brand-text-secondary mb-1">Статус</label>
+          <select 
+            value={status}
+            onChange={(e) => setStatus(e.target.value as CatStatus)}
+            className="w-full h-12 px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary"
+          >
+              <option value="В приюте">В приюте</option>
+              <option value="Дома">Дома</option>
+              <option value="Умерли">На радуге</option>
+          </select>
+        </div>
+        
         <div>
           <label className="block text-sm font-medium text-brand-text-secondary mb-1">Год рождения</label>
           <Input type="number" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} />

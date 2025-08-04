@@ -11,7 +11,6 @@ export interface RevaccinationInfo {
     message: string;
 }
 
-// Вспомогательная функция для проверки и создания статуса на основе вычисленной даты
 const checkAndCreateInfo = (dueDate: Date, messagePrefix: string): RevaccinationInfo => {
     const today = startOfDay(new Date());
     const isOverdue = isPast(dueDate) && !isTodayFns(dueDate);
@@ -30,8 +29,8 @@ const checkAndCreateInfo = (dueDate: Date, messagePrefix: string): Revaccination
     return { status: null, dueDate: null, isOverdue: false, message: '' };
 };
 
-// Основная, упрощенная функция
 export function getRevaccinationStatus(cat: Cat): RevaccinationInfo {
+    // === ИЗМЕНЕНИЕ ЗДЕСЬ: Игнорируем кошек дома и на радуге ===
     if (cat.status !== 'В приюте') {
         return { status: null, dueDate: null, isOverdue: false, message: '' };
     }
@@ -41,7 +40,6 @@ export function getRevaccinationStatus(cat: Cat): RevaccinationInfo {
         .filter(t => t.type === TreatmentType.VACCINATION && t.vaccinationStage)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // 1. Проверка на наличие запланированных будущих вакцинаций
     const futureVaccination = allVaccinations.find(v => isAfter(startOfDay(new Date(v.date)), today));
     if (futureVaccination) {
         const futureVaxDate = startOfDay(new Date(futureVaccination.date));
@@ -53,7 +51,6 @@ export function getRevaccinationStatus(cat: Cat): RevaccinationInfo {
         }
     }
     
-    // 2. Расчет на основе прошлых прививок
     const pastVaccinations = allVaccinations.filter(v => !isAfter(startOfDay(new Date(v.date)), today));
     if (pastVaccinations.length === 0) {
         return { status: null, dueDate: null, isOverdue: false, message: "" };

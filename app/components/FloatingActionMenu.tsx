@@ -3,17 +3,16 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MessageCircle, Sparkles, Home } from 'lucide-react';
+import { Plus, MessageCircle, Sparkles } from 'lucide-react'; // Убрали Home
 import Button from './ui/Button';
 
 interface FloatingActionMenuProps {
   onChatClick: () => void;
   onAiClick: () => void;
-  onHomeArchiveClick: () => void;
   canUseAi: boolean;
 }
 
-const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onChatClick, onAiClick, onHomeArchiveClick, canUseAi }) => {
+const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onChatClick, onAiClick, canUseAi }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const menuVariants = {
@@ -47,16 +46,7 @@ const FloatingActionMenu: React.FC<FloatingActionMenuProps> = ({ onChatClick, on
             exit="closed"
             className="flex flex-col items-end gap-3 mr-3"
           >
-            <motion.div variants={itemVariants} className="flex items-center gap-3">
-              <span className="bg-white/90 backdrop-blur-sm text-sm font-semibold px-3 py-1.5 rounded-full shadow-md text-brand-text-primary">Архив "Дома"</span>
-              <Button
-                onClick={() => { onHomeArchiveClick(); setIsOpen(false); }}
-                className="h-12 w-12 rounded-full shadow-lg"
-                aria-label="Открыть архив 'Дома'"
-              >
-                <Home size={24} />
-              </Button>
-            </motion.div>
+            {/* === ИЗМЕНЕНИЕ: Полностью удален блок с кнопкой "Архив 'Дома'" === */}
             {canUseAi && (
               <motion.div variants={itemVariants} className="flex items-center gap-3">
                 <span className="bg-white/90 backdrop-blur-sm text-sm font-semibold px-3 py-1.5 rounded-full shadow-md text-brand-text-primary">ИИ-Ассистент</span>

@@ -24,7 +24,7 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const today = startOfDay(new Date());
 
-  // 👇 ФИЛЬТРУЕМ КОШЕК, ОСТАВЛЯЯ ТОЛЬКО ТЕХ, КТО В ПРИЮТЕ
+  // === ИЗМЕНЕНИЕ ЗДЕСЬ: Оставляем только кошек в приюте ===
   const activeCats = cats.filter(cat => cat.status === 'В приюте');
 
   activeCats.forEach(cat => {

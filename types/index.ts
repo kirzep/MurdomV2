@@ -1,4 +1,5 @@
-export type CatStatus = "В приюте" | "Дома";
+// types/index.ts
+export type CatStatus = "В приюте" | "Дома" | "Умерли";
 
 export enum Role {
   VOLUNTEER = 'VOLUNTEER',

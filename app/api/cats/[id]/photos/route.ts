@@ -35,7 +35,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     try {
         const body = await request.json();
-        const { filePaths } = body; // Ожидаем массив путей к файлам
+        const { filePaths } = body;
 
         if (!Array.isArray(filePaths) || filePaths.length === 0) {
             return NextResponse.json({ error: 'File paths are required' }, { status: 400 });
@@ -83,10 +83,12 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
             where: { id: { in: ids }, catId: params.id },
         });
 
+        // === ИЗМЕНЕНИЕ ЗДЕСЬ: Проверяем, не пытается ли пользователь удалить аватар ===
+        if (photosToDelete.some(photo => photo.isAvatar)) {
+            return NextResponse.json({ error: 'You cannot delete the current avatar.' }, { status: 400 });
+        }
+
         for (const photo of photosToDelete) {
-             if (photo.isAvatar) {
-                return NextResponse.json({ error: 'You cannot delete the current avatar.' }, { status: 400 });
-            }
             try {
                 await fs.unlink(path.join(process.cwd(), 'public', photo.filePath));
             } catch (fileError) {

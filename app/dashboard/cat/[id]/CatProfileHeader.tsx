@@ -1,10 +1,10 @@
 // app/dashboard/cat/[id]/CatProfileHeader.tsx
 "use client";
 
-import { Cat, CatStatus } from "@/types";
+import { Cat } from "@/types";
 import { format } from "date-fns";
 import { ru } from 'date-fns/locale';
-import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle, Home, ArchiveRestore } from "lucide-react";
+import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle } from "lucide-react";
 import Button from "@/app/components/ui/Button";
 import { getRevaccinationStatus, RevaccinationInfo } from "@/lib/revaccinationHelper";
 import { useEffect, useState } from "react";
@@ -15,7 +15,7 @@ interface CatProfileHeaderProps {
   onEdit: () => void;
   onDelete: () => void;
   onInfoClick: () => void;
-  onStatusChange: (status: CatStatus) => Promise<void>;
+  // onStatusChange - УБРАЛИ ЭТУ ПРОПСУ
 }
 
 const pluralizeYears = (age: number) => {
@@ -24,24 +24,12 @@ const pluralizeYears = (age: number) => {
     return 'лет';
 };
 
-const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdit, onDelete, onInfoClick, onStatusChange }) => {
+const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdit, onDelete, onInfoClick }) => {
   const [alertInfo, setAlertInfo] = useState<RevaccinationInfo>({ status: null, dueDate: null, isOverdue: false, message: '' });
-  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   useEffect(() => {
     setAlertInfo(getRevaccinationStatus(cat));
   }, [cat]);
-
-  const handleStatusChange = async () => {
-    const newStatus: CatStatus = cat.status === 'В приюте' ? 'Дома' : 'В приюте';
-    const confirmMessage = `Вы уверены, что хотите изменить статус кошки "${cat.name}" на "${newStatus}"?`;
-    
-    if (window.confirm(confirmMessage)) {
-        setIsChangingStatus(true);
-        await onStatusChange(newStatus);
-        setIsChangingStatus(false);
-    }
-  };
 
   const getAge = (birthYear: number | null) => {
     if (!birthYear) return null;
@@ -87,11 +75,6 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
 
       <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md relative">
         <div className="hidden sm:flex absolute top-6 right-6 items-center gap-2 flex-shrink-0">
-            {canEdit && (
-              <Button onClick={handleStatusChange} variant="secondary" className="p-2 h-12 w-12 rounded-full" isLoading={isChangingStatus} title={cat.status === 'В приюте' ? 'Отправить домой' : 'Вернуть в приют'}>
-                {cat.status === 'В приюте' ? <Home size={28} /> : <ArchiveRestore size={28} />}
-              </Button>
-            )}
             <Button onClick={onInfoClick} variant="secondary" className="p-2 h-12 w-12 rounded-full">
                 <Info size={28} />
             </Button>
@@ -134,13 +117,7 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
             </div>
         </div>
 
-        <div className="sm:hidden grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-brand-border">
-            {canEdit && (
-                <Button onClick={handleStatusChange} variant="secondary" className="flex-col h-auto p-2" isLoading={isChangingStatus}>
-                    {cat.status === 'В приюте' ? <Home size={20} /> : <ArchiveRestore size={20} />}
-                    <span className="text-xs mt-1">{cat.status === 'В приюте' ? 'Домой' : 'В приют'}</span>
-                </Button>
-            )}
+        <div className="sm:hidden grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-brand-border">
             <Button onClick={onInfoClick} variant="secondary" className="flex-col h-auto p-2">
                 <Info size={20}/>
                 <span className="text-xs mt-1">Инфо</span>
