@@ -98,13 +98,26 @@ model Cat {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   notes       String?
-  status      String      @default("В приюте")
+  status      String     @default("В приюте")
   creatorId   String?
-  creator     User?      @relation("Creator", fields: [creatorId], references: [id], onDelete: SetNull) // Уважаем onDelete: SetNull
+  creator     User?      @relation("Creator", fields: [creatorId], references: [id], onDelete: SetNull)
   treatments  Treatment[]
   documents   Document[]
   auditLogs   AuditLog[]
+  // === НОВАЯ СВЯЗЬ С ФОТОГРАФИЯМИ ===
+  photos      Photo[]
 }
+
+// === НОВАЯ МОДЕЛЬ ДЛЯ ФОТОГРАФИЙ ГАЛЕРЕИ ===
+model Photo {
+  id        String   @id @default(cuid())
+  filePath  String
+  createdAt DateTime @default(now())
+  isAvatar  Boolean  @default(false)
+  catId     String
+  cat       Cat      @relation(fields: [catId], references: [id], onDelete: Cascade)
+}
+
 
 model Treatment {
   id               String        @id @default(cuid())
@@ -113,7 +126,6 @@ model Treatment {
   type             TreatmentType
   date             DateTime
   productName      String
-  // Новое поле для отслеживания этапов вакцинации
   vaccinationStage String?
   createdAt        DateTime      @default(now())
 }
@@ -146,7 +158,6 @@ model AuditLog {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Новая модель для хранения подписок на Push-уведомления
 model PushSubscription {
   id        String   @id @default(cuid())
   endpoint  String   @unique

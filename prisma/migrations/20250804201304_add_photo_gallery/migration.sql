@@ -1,0 +1,9 @@
+-- CreateTable
+CREATE TABLE "Photo" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "filePath" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isAvatar" BOOLEAN NOT NULL DEFAULT false,
+    "catId" TEXT NOT NULL,
+    CONSTRAINT "Photo_catId_fkey" FOREIGN KEY ("catId") REFERENCES "Cat" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

@@ -23,7 +23,6 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Обновляем состояние, если пропсы изменились
   useEffect(() => {
     if (cat) {
       setName(cat.name);
@@ -38,23 +37,22 @@ const EditCatModal: React.FC<EditCatModalProps> = ({ isOpen, onClose, onCatUpdat
     setError('');
 
     try {
-      let avatarUrl = cat.avatarUrl;
+      const updatedData: Partial<Cat> & { newAvatarPath?: string } = {
+        name,
+        arrivalDate: arrivalDate ? new Date(arrivalDate).toISOString() : null,
+        birthYear: birthYear ? parseInt(birthYear) : null,
+      };
+
       if (avatarFile) {
         const formData = new FormData();
         formData.append('file', avatarFile);
         const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
         const uploadData = await uploadRes.json();
         if (!uploadRes.ok) throw new Error('Ошибка загрузки аватара');
-        avatarUrl = uploadData.filePath;
+        // Посылаем специальное поле, чтобы API знало, что нужно создать новую запись в галерее
+        updatedData.newAvatarPath = uploadData.filePath;
       }
       
-      const updatedData = {
-        name,
-        avatarUrl,
-        arrivalDate: arrivalDate ? new Date(arrivalDate).toISOString() : null,
-        birthYear: birthYear ? parseInt(birthYear) : null,
-      };
-
       await fetch(`/api/cats/${cat.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

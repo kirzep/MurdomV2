@@ -15,26 +15,25 @@ interface Trail {
   id: number;
   paws: Paw[];
   icon: string;
-  moveAngle: number;    // Угол движения в градусах (0 = вправо, 90 = вниз)
-  iconRotation: number; // Итоговый угол поворота для CSS
+  moveAngle: number;
+  iconRotation: number;
   startX: number;
   startY: number;
   step: number;
 }
 
 // --- Константы для легкой настройки анимации ---
-const PAW_INTERVAL = 600;     // Интервал появления новой лапки
-const MAX_TRAILS = 2;         // Максимальное количество тропинок на экране
-const MAX_PAWS_PER_TRAIL = 3; // **Максимальная длина следа: 3 лапки**
-const PAW_SPACING = 55;       // Расстояние между лапками
-const PAW_OPACITY = 0.2;      // **Прозрачность лапок**
+const PAW_INTERVAL = 600;
+const MAX_TRAILS = 2;
+const MAX_PAWS_PER_TRAIL = 3;
+const PAW_SPACING = 55;
+const PAW_OPACITY = 0.2;
 
 export default function PawsBackground() {
   const [trails, setTrails] = useState<Trail[]>([]);
   const [pawIcons, setPawIcons] = useState<string[]>([]);
-  const trailsRef = useRef<Trail[]>([]); // Ref для надежного доступа к состоянию в интервале
+  const trailsRef = useRef<Trail[]>([]);
 
-  // 1. Загружаем иконки один раз
   useEffect(() => {
     fetch('/api/icons/background_paws')
       .then(res => (res.ok ? res.json() : []))
@@ -44,12 +43,10 @@ export default function PawsBackground() {
       .catch(error => console.error("Не удалось загрузить иконки лапок:", error));
   }, []);
 
-  // 2. Обновляем Ref при изменении состояния
   useEffect(() => {
     trailsRef.current = trails;
   }, [trails]);
 
-  // 3. Функция для создания новой тропинки
   const createTrail = useCallback((): Trail | null => {
     if (pawIcons.length === 0) return null;
 
@@ -81,10 +78,6 @@ export default function PawsBackground() {
         break;
     }
 
-    // *** ГЛАВНОЕ ИСПРАВЛЕНИЕ ***
-    // Изначально иконка смотрит вверх (0 градусов в CSS).
-    // Чтобы повернуть ее по направлению движения, добавляем 90 градусов.
-    // Пример: Движение вправо (moveAngle = 0) -> поворот иконки на 90 градусов.
     const iconRotation = moveAngle + 90;
 
     return {
@@ -99,11 +92,9 @@ export default function PawsBackground() {
     };
   }, [pawIcons]);
 
-  // 4. Основной цикл анимации
   useEffect(() => {
     if (pawIcons.length === 0) return;
     
-    // Сразу создаем нужное количество тропинок
     const initialTrails: Trail[] = [];
     for (let i = 0; i < MAX_TRAILS; i++) {
         const newTrail = createTrail();
@@ -113,7 +104,6 @@ export default function PawsBackground() {
 
     const intervalId = setInterval(() => {
       const newTrails: Trail[] = [];
-      // Обновляем существующие тропинки
       const updatedTrails = trailsRef.current.map(trail => {
           const { startX, startY, moveAngle, step } = trail;
           const distance = step * PAW_SPACING;
@@ -121,20 +111,17 @@ export default function PawsBackground() {
           const nextX = startX + distance * Math.cos(rad);
           const nextY = startY + distance * Math.sin(rad);
 
-          // Если тропинка ушла за экран, помечаем ее для замены
           if (nextX < -100 || nextX > window.innerWidth + 100 || nextY < -100 || nextY > window.innerHeight + 100) {
               const newTrail = createTrail();
               if (newTrail) newTrails.push(newTrail);
               return null;
           }
           
-          // Добавляем новую лапку и обрезаем массив до нужной длины
           const newPaws = [...trail.paws, { id: Date.now() + Math.random(), x: nextX, y: nextY }].slice(-MAX_PAWS_PER_TRAIL);
 
           return { ...trail, paws: newPaws, step: trail.step + 1 };
-      }).filter((t): t is Trail => t !== null); // Удаляем `null` из массива
+      }).filter((t): t is Trail => t !== null);
       
-      // Обновляем состояние одним вызовом
       setTrails([...updatedTrails, ...newTrails]);
 
     }, PAW_INTERVAL);
@@ -143,7 +130,8 @@ export default function PawsBackground() {
   }, [pawIcons, createTrail]);
 
   return (
-    <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+    // === ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлен класс z-[-1], чтобы фон был гарантированно сзади ===
+    <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-[-1]">
       <AnimatePresence>
         {trails.map(trail =>
           trail.paws.map(paw => (
@@ -157,7 +145,6 @@ export default function PawsBackground() {
                 position: 'absolute',
                 left: `${paw.x}px`,
                 top: `${paw.y}px`,
-                // Применяем рассчитанный угол поворота для всей тропинки
                 transform: `translate(-50%, -50%) rotate(${trail.iconRotation}deg)`,
               }}
             >

@@ -38,14 +38,22 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     try {
-        const cat = await prisma.cat.findUnique({ where: { id: params.id }, include: { documents: true }});
+        const cat = await prisma.cat.findUnique({ where: { id: params.id }, include: { documents: true, photos: true }});
         if (cat?.documents) {
             for (const doc of cat.documents) {
                 try {
                     await fs.unlink(path.join(process.cwd(), 'public', doc.filePath));
                 } catch (fileError) {
-                    // Исправлена ошибка S2486: добавлено логирование
                     console.error(`Could not delete file ${doc.filePath}:`, fileError);
+                }
+            }
+        }
+        if (cat?.photos) {
+            for (const photo of cat.photos) {
+                try {
+                    await fs.unlink(path.join(process.cwd(), 'public', photo.filePath));
+                } catch (fileError) {
+                     console.error(`Could not delete file ${photo.filePath}:`, fileError);
                 }
             }
         }
@@ -78,7 +86,7 @@ const createChangeDescription = (currentCat: any, body: any): string => {
     if (body.arrivalDate && new Date(body.arrivalDate).getTime() !== currentCat.arrivalDate?.getTime()) {
         changes.push(`дату поступления`);
     }
-    if (body.avatarUrl && body.avatarUrl !== currentCat.avatarUrl) {
+    if (body.newAvatarPath) { // Используем новое поле для логгирования
         changes.push('аватар');
     }
     if (body.notes !== undefined && body.notes !== currentCat.notes) {
@@ -98,22 +106,48 @@ export async function PATCH(request: Request, { params }: { params: { id:string 
     }
     try {
         const body = await request.json();
-        // Исправлена ошибка TS2353: убираем `select`, чтобы получить полный объект кошки
+        const { newAvatarPath, ...catData } = body;
+        
         const currentCat = await prisma.cat.findUnique({ where: { id: params.id } });
-
         if (!currentCat) {
             return NextResponse.json({ error: 'Cat not found' }, { status: 404 });
         }
         
         const changeDescription = createChangeDescription(currentCat, body);
-
         if (changeDescription) {
             await prisma.auditLog.create({
                 data: { change: changeDescription, catId: params.id, userId: session.user.id }
             });
         }
 
-        const updatedCat = await prisma.cat.update({ where: { id: params.id }, data: body });
+        // Если пришел новый аватар
+        if (newAvatarPath) {
+            catData.avatarUrl = newAvatarPath;
+            // Атомарно обновляем флаги и создаем новую запись фото
+            await prisma.$transaction([
+                prisma.photo.updateMany({
+                    where: { catId: params.id, isAvatar: true },
+                    data: { isAvatar: false }
+                }),
+                prisma.photo.create({
+                    data: {
+                        catId: params.id,
+                        filePath: newAvatarPath,
+                        isAvatar: true
+                    }
+                }),
+                prisma.cat.update({
+                    where: { id: params.id },
+                    data: catData
+                })
+            ]);
+        } else {
+            // Если аватар не менялся, просто обновляем данные кошки
+            await prisma.cat.update({ where: { id: params.id }, data: catData });
+        }
+        
+        const updatedCat = await prisma.cat.findUnique({where: {id: params.id}})
+
         return NextResponse.json(updatedCat);
     } catch (error) {
         console.error("Failed to update cat:", error);
