@@ -1,7 +1,17 @@
 // lib/calendarHelper.ts
-import { Cat, Treatment, TreatmentType } from '@/types';
-import { addDays, addYears, isPast, isToday, differenceInDays, startOfDay, isAfter, isSameDay } from 'date-fns';
+import { Cat, TreatmentType } from '@/types';
+import { addDays, addYears, isPast, isToday as isTodayFns, differenceInDays, isAfter, startOfDay, isSameDay } from 'date-fns';
 
+export type RevaccinationStatus = 'overdue' | 'upcoming' | null;
+
+export interface RevaccinationInfo {
+    status: RevaccinationStatus;
+    dueDate: Date | null;
+    isOverdue: boolean;
+    message: string;
+}
+
+// Добавляем новый интерфейс и enum
 export interface CalendarEvent {
   catId: string;
   catName: string;
@@ -12,6 +22,7 @@ export interface CalendarEvent {
   isProjected: boolean;
   isOverdue: boolean;
   isUpcoming: boolean;
+  canConfirmVaccination: boolean; // <-- Новое поле
 }
 
 const STAGE_DETAILS = {
@@ -24,7 +35,6 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   const today = startOfDay(new Date());
 
-  // === ИЗМЕНЕНИЕ ЗДЕСЬ: Оставляем только кошек в приюте ===
   const activeCats = cats.filter(cat => cat.status === 'В приюте');
 
   activeCats.forEach(cat => {
@@ -34,16 +44,18 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
 
     allVaccinations.forEach(v => {
       const stage = (v.vaccinationStage === 'revaccination' ? 'annual' : v.vaccinationStage) as 'first' | 'second' | 'annual';
+      const eventDate = startOfDay(new Date(v.date));
       events.push({
         catId: cat.id,
         catName: cat.name,
         catAvatarUrl: cat.avatarUrl,
-        date: new Date(v.date),
+        date: eventDate,
         stage: stage,
         stageText: STAGE_DETAILS[stage].text,
         isProjected: false,
-        isOverdue: isPast(new Date(v.date)) && !isToday(new Date(v.date)),
-        isUpcoming: differenceInDays(new Date(v.date), today) <= 7 && !isPast(new Date(v.date)),
+        isOverdue: isPast(eventDate) && !isTodayFns(eventDate),
+        isUpcoming: differenceInDays(eventDate, today) <= 7 && !isPast(eventDate),
+        canConfirmVaccination: false, // Реальные, уже существующие события подтвердить нельзя
       });
     });
 
@@ -71,12 +83,12 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
     
     if (projectedDate && projectedStage) {
         const hasMatchingRealEvent = allVaccinations.some(v => 
-            v.vaccinationStage === projectedStage && 
+            (v.vaccinationStage === projectedStage || (projectedStage === 'annual' && v.vaccinationStage === 'revaccination')) && 
             isSameDay(new Date(v.date), projectedDate)
         );
 
         if (!hasMatchingRealEvent) {
-             const isOverdue = isPast(projectedDate) && !isToday(projectedDate);
+             const isOverdue = isPast(projectedDate) && !isTodayFns(projectedDate);
              const daysUntil = differenceInDays(projectedDate, today);
              const isUpcoming = !isOverdue && daysUntil >= 0 && daysUntil <= 7;
     
@@ -90,6 +102,7 @@ export function generateVaccinationEvents(cats: Cat[]): CalendarEvent[] {
                 isProjected: true,
                 isOverdue,
                 isUpcoming,
+                canConfirmVaccination: isOverdue || isUpcoming, // <-- Устанавливаем флаг
             });
         }
     }

@@ -33,6 +33,16 @@ export interface Treatment {
   vaccinationStage?: 'first' | 'second' | 'revaccination' | null;
 }
 
+export interface Treatment {
+  id: string;
+  catId: string;
+  type: TreatmentType;
+  date: string;
+  productName: string;
+  createdAt: string;
+  vaccinationStage?: 'first' | 'second' | 'revaccination' | null;
+}
+
 export interface Document {
   id: string;
   catId: string;

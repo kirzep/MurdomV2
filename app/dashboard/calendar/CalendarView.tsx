@@ -1,172 +1,257 @@
-// app/dashboard/calendar/CalendarView.tsx
+// app/dashboard/calendar/page.tsx
 "use client";
 
-import { useState, useMemo } from "react";
-import { CalendarEvent } from "@/lib/calendarHelper";
-import { Cat } from "@/types";
-import {
-  format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, addMonths, subMonths, getYear, setYear, setMonth,
-  isSameMonth, isSameDay, startOfYear, endOfYear, eachMonthOfInterval
-} from "date-fns";
-import { ru } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Calendar, List } from "lucide-react";
-import Button from "@/app/components/ui/Button";
-import { motion, AnimatePresence } from "framer-motion";
-import CalendarEventCard from "./CalendarEventCard";
+import { useState, useEffect, useMemo } from 'react';
+import { Cat, Role, TreatmentType } from '@/types';
+import Spinner from '@/app/components/ui/Spinner';
+import { generateVaccinationEvents, CalendarEvent } from '@/lib/calendarHelper';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isToday, addMonths, isSameMonth, isSameDay, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, ArrowLeft, Calendar, ListChecks, Check } from 'lucide-react';
+import Link from 'next/link';
+import Button from '@/app/components/ui/Button';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSession } from 'next-auth/react';
+import ConfirmVaccinationModal from './ConfirmVaccinationModal';
+import CalendarEventCard from './CalendarEventCard';
 
-interface CalendarViewProps {
-  allEvents: CalendarEvent[];
-}
+// Компоненты-хелперы вынесены за пределы основного компонента для оптимизации
 
-export default function CalendarView({ allEvents }: CalendarViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<"month" | "year">("month");
+const EventRow: React.FC<{ event: CalendarEvent; onConfirmClick: (event: CalendarEvent) => void; canEdit: boolean }> = ({ event, onConfirmClick, canEdit }) => {
+    const avatarSrc = event.catAvatarUrl
+        ? `${process.env.NEXT_PUBLIC_APP_URL || ''}${event.catAvatarUrl}`
+        : `https://placehold.co/32x32/e2e8f0/64748b?text=${event.catName.charAt(0)}`;
+    
+    let colorClasses = "border-l-4 border-sky-300";
+    if (event.isProjected) {
+        if (event.isOverdue) colorClasses = "border-l-4 border-red-400";
+        else if (event.isUpcoming) colorClasses = "border-l-4 border-amber-400";
+        else colorClasses = "border-l-4 border-gray-300";
+    }
 
-  const today = new Date();
-
-  // --- ЛОГИКА ДЛЯ ВИДА "МЕСЯЦ" ---
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startingDayIndex = (getDay(monthStart) + 6) % 7; // Пн = 0
-
-  const eventsByDate = useMemo(() => allEvents.reduce((acc, event) => {
-    const dateKey = format(event.date, "yyyy-MM-dd");
-    (acc[dateKey] = acc[dateKey] || []).push(event);
-    return acc;
-  }, {} as Record<string, CalendarEvent[]>), [allEvents]);
-
-  // --- ЛОГИКА ДЛЯ ВИДА "ГОД" ---
-  const yearStart = startOfYear(currentDate);
-  const yearEnd = endOfYear(currentDate);
-  const monthsInYear = eachMonthOfInterval({ start: yearStart, end: yearEnd });
-
-  const eventsByMonth = useMemo(() => allEvents.reduce((acc, event) => {
-    const monthKey = format(event.date, "yyyy-MM");
-    (acc[monthKey] = acc[monthKey] || []).push(event);
-    return acc;
-  }, {} as Record<string, CalendarEvent[]>), [allEvents]);
-
-  const changeDate = (amount: number) => {
-    if (viewMode === "month") setCurrentDate(addMonths(currentDate, amount));
-    else setCurrentDate(addMonths(currentDate, amount * 12));
-  };
-  
-  const upcomingEvents = useMemo(() => {
-    return allEvents
-      .filter(event => event.isProjected && event.date >= today)
-      .slice(0, 5);
-  }, [allEvents, today]);
-
-  // --- КОМПОНЕНТЫ VIEW ---
-  
-  const MiniCalendar = () => (
-    <div className="p-4 bg-brand-surface rounded-xl shadow-sm">
-        <div className="flex items-center justify-between">
-            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-1 rounded-full hover:bg-gray-100"><ChevronLeft size={20}/></button>
-            <h3 className="font-semibold text-sm">{format(currentDate, 'LLLL yyyy', {locale: ru})}</h3>
-            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-1 rounded-full hover:bg-gray-100"><ChevronRight size={20}/></button>
+    return (
+        <div className={`flex items-center gap-4 p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${colorClasses}`}>
+            <div className="font-semibold text-center w-8 text-gray-600 flex-shrink-0">
+                <p className="text-sm">{format(event.date, 'E', {locale: ru})}</p>
+                <p className="text-lg -mt-1">{format(event.date, 'd')}</p>
+            </div>
+             <Link href={`/dashboard/cat/${event.catId}`} className="flex items-center gap-3 flex-grow min-w-0">
+                <img src={avatarSrc} alt={event.catName} className="w-9 h-9 rounded-full" />
+                <div className="flex-grow min-w-0">
+                    <p className="font-semibold text-gray-800 truncate">{event.catName}</p>
+                    <p className="text-xs text-gray-500">{event.stageText}</p>
+                </div>
+            </Link>
+            {canEdit && event.canConfirmVaccination && (
+                <button
+                    onClick={() => onConfirmClick(event)}
+                    className="flex-shrink-0 w-8 h-8 bg-green-200 text-green-800 rounded-full flex items-center justify-center hover:bg-green-300 transition-colors ml-2"
+                    title="Отметить как выполненную"
+                >
+                    <Check size={16} />
+                </button>
+            )}
         </div>
-        <div className="grid grid-cols-7 gap-y-2 mt-4 text-xs text-center">
-            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(d => <div key={d} className="font-medium text-gray-400">{d}</div>)}
-            {Array.from({ length: startingDayIndex }).map((_, i) => <div key={`empty-${i}`} />)}
-            {daysInMonth.map(day => {
-                const isCurrent = isSameDay(day, currentDate);
-                const isTodayDate = isSameDay(day, today);
+    );
+};
+
+const MonthView = ({ currentDate, allEvents, onConfirmClick, canEdit }: { currentDate: Date, allEvents: CalendarEvent[], onConfirmClick: (event: CalendarEvent) => void, canEdit: boolean }) => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(currentDate);
+    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const startingDayIndex = (getDay(monthStart) + 6) % 7;
+    const monthEvents = allEvents.filter(e => isSameMonth(e.date, currentDate));
+
+    return (
+        <>
+            <div className="hidden md:grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
+                    <div key={day} className="text-center font-semibold text-xs text-gray-500 py-2 bg-gray-50">{day}</div>
+                ))}
+                {Array.from({ length: startingDayIndex }).map((_, i) => <div key={`empty-${i}`} className="bg-gray-50" />)}
+                {daysInMonth.map(day => {
+                    const events = allEvents.filter(e => isSameDay(e.date, day));
+                    return (
+                        <div key={day.toISOString()} className={`p-2 bg-white ${!isSameMonth(day, currentDate) && 'bg-gray-50'}`}>
+                            <time dateTime={format(day, "yyyy-MM-dd")} className={`text-xs font-semibold ${isToday(day) ? 'text-brand-primary' : 'text-gray-600'}`}>
+                                {format(day, 'd')}
+                            </time>
+                            <div className="mt-1 space-y-1">
+                                {events.map(event => <CalendarEventCard key={event.catId + event.stage + event.date.toISOString()} event={event} onConfirmClick={onConfirmClick} canEdit={canEdit} />)}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="block md:hidden space-y-3">
+                {monthEvents.length > 0
+                    ? monthEvents.map(event => <EventRow key={event.catId + event.stage + event.date.toISOString()} event={event} onConfirmClick={onConfirmClick} canEdit={canEdit} />)
+                    : <p className="text-center text-gray-500 py-8">В этом месяце событий нет.</p>
+                }
+            </div>
+        </>
+    );
+};
+
+const YearView = ({ currentDate, allEvents, onConfirmClick, canEdit }: { currentDate: Date, allEvents: CalendarEvent[], onConfirmClick: (event: CalendarEvent) => void, canEdit: boolean }) => {
+    const months = eachMonthOfInterval({ start: startOfYear(currentDate), end: endOfYear(currentDate) });
+    return (
+        <div className="space-y-8">
+            {months.map(month => {
+                const monthEvents = allEvents.filter(e => isSameMonth(e.date, month));
+                if (monthEvents.length === 0) return null;
+
                 return (
-                    <button key={day.toString()} onClick={() => setCurrentDate(day)}
-                        className={`w-7 h-7 rounded-full transition-colors ${isCurrent ? 'bg-brand-primary text-white' : isTodayDate ? 'bg-indigo-100 text-brand-primary' : 'hover:bg-gray-100'}`}>
-                        {format(day, 'd')}
-                    </button>
+                    <section key={format(month, 'yyyy-MM')}>
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 capitalize">
+                            {format(month, 'LLLL', {locale: ru})}
+                        </h3>
+                        <div className="space-y-3">
+                            {monthEvents.map(event => <EventRow key={event.catId + event.stage + event.date.toISOString()} event={event} onConfirmClick={onConfirmClick} canEdit={canEdit}/>)}
+                        </div>
+                    </section>
                 )
             })}
         </div>
-    </div>
-  )
+    );
+};
 
-  const MonthView = () => (
-    <div className="grid grid-cols-7 auto-rows-[140px] gap-1">
-      {['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'].map(day => (
-        <div key={day} className="text-xs font-semibold text-gray-400 p-2 border-b">{day}</div>
-      ))}
-      {Array.from({ length: startingDayIndex }).map((_, i) => <div key={`empty-${i}`} />)}
-      {daysInMonth.map(day => {
-        const dateKey = format(day, "yyyy-MM-dd");
-        const dayEvents = eventsByDate[dateKey] || [];
-        return (
-          <div key={day.toString()} className={`p-2 border-t transition-colors ${isSameMonth(day, currentDate) ? '' : 'bg-gray-50'}`}>
-            <time dateTime={dateKey} className={`text-xs font-semibold ${isToday(day) ? 'text-brand-primary' : 'text-gray-500'}`}>
-              {format(day, 'd')}
-            </time>
-            <div className="mt-1 space-y-1">
-              {dayEvents.slice(0, 3).map(event => <CalendarEventCard key={event.catId + event.stage} event={event} />)}
-              {dayEvents.length > 3 && <p className="text-xs text-gray-400 mt-1">+ {dayEvents.length - 3} еще</p>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 
-  const YearView = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {monthsInYear.map(month => {
-            const monthKey = format(month, "yyyy-MM");
-            const monthEvents = eventsByMonth[monthKey] || [];
-            return (
-                <div key={monthKey} className="p-4 bg-brand-surface rounded-xl shadow-sm hover:shadow-lg transition-shadow">
-                    <button onClick={() => { setViewMode('month'); setCurrentDate(month); }}
-                        className="font-bold text-brand-primary mb-3 capitalize text-left w-full hover:underline">
-                        {format(month, 'LLLL', {locale: ru})}
-                    </button>
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-2">
-                        {monthEvents.length > 0 ? monthEvents.map(event => <CalendarEventCard key={event.catId + event.date} event={event}/>)
-                        : <p className="text-xs text-gray-400 italic">Нет событий</p>}
-                    </div>
-                </div>
-            )
-        })}
-    </div>
-  )
+export default function CalendarPage() {
+  const { data: session, status } = useSession();
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'year'>('year');
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
+  const canEdit = useMemo(() => {
+    if (!session?.user) return false;
+    return session.user.role !== Role.VOLUNTEER;
+  }, [session]);
+
+  const fetchCats = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/cats');
+      const data = await response.json();
+      setCats(data);
+    } catch (error) { 
+      console.error('Ошибка при загрузке кошек:', error); 
+    } finally { 
+      setIsLoading(false); 
+    }
+  };
+  
+  useEffect(() => {
+    fetchCats();
+  }, []);
+
+  const allEvents = useMemo(() => generateVaccinationEvents(cats), [cats]);
+
+  const changeDate = (amount: number) => {
+    setCurrentDate(prev => viewMode === 'month' ? addMonths(prev, amount) : addMonths(prev, amount * 12));
+  };
+  
+  const handleConfirmClick = (event: CalendarEvent) => {
+      setSelectedEvent(event);
+  };
+  
+  const handleConfirmVaccination = async (productName: string) => {
+    if (!selectedEvent) return;
+    setIsConfirming(true);
+    try {
+        const body = {
+            type: TreatmentType.VACCINATION,
+            date: new Date().toISOString(),
+            productName,
+            vaccinationStage: selectedEvent.stage === 'annual' ? 'revaccination' : selectedEvent.stage
+        };
+
+        const res = await fetch(`/api/cats/${selectedEvent.catId}/treatments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            throw new Error('Не удалось добавить запись о вакцинации');
+        }
+        
+        await fetchCats();
+        setSelectedEvent(null);
+
+    } catch (error) {
+        console.error(error);
+        alert((error as Error).message);
+    } finally {
+        setIsConfirming(false);
+    }
+  };
+
+  if (isLoading || status === 'loading') {
+    return <div className="h-screen flex justify-center items-center"><Spinner /></div>;
+  }
+  
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Левая панель */}
-        <aside className="lg:col-span-1 space-y-6">
-            <div className="flex justify-between items-center">
-                 <h1 className="text-2xl font-bold text-brand-text-primary">Календарь</h1>
-                 <div className="bg-white p-1 rounded-full flex border">
-                    <Button variant={viewMode === 'month' ? 'primary' : 'secondary'} onClick={() => setViewMode('month')} className="px-2 py-1 !rounded-full text-xs"><Calendar size={16}/></Button>
-                    <Button variant={viewMode === 'year' ? 'primary' : 'secondary'} onClick={() => setViewMode('year')} className="px-2 py-1 !rounded-full text-xs"><List size={16}/></Button>
-                 </div>
-            </div>
-            <MiniCalendar />
-            <div>
-                <h3 className="font-semibold mb-3">Ближайшие события</h3>
-                <div className="space-y-2">
-                    {upcomingEvents.length > 0 ? upcomingEvents.map(e => <CalendarEventCard key={e.catId + e.stage} event={e}/>)
-                    : <p className="text-sm text-gray-500 italic">Нет ближайших событий.</p>}
+    <>
+    <ConfirmVaccinationModal
+        isOpen={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onConfirm={handleConfirmVaccination}
+        event={selectedEvent}
+        catTreatments={cats.find(c => c.id === selectedEvent?.catId)?.treatments || []}
+        isLoading={isConfirming}
+    />
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-background min-h-screen font-sans">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-screen-xl mx-auto">
+        <div className="mb-6">
+            <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-surface text-brand-text-primary hover:bg-brand-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary border border-brand-border">
+                <ArrowLeft size={16} />
+                Вернуться в архив
+            </Link>
+        </div>
+        <header className="flex flex-wrap justify-between items-center gap-y-4 mb-6">
+            <h1 className="text-3xl font-bold text-gray-800">Календарь событий</h1>
+        </header>
+        
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+            <div className="flex justify-center mb-6">
+                <div className="bg-gray-200 p-1 rounded-full flex">
+                    <Button variant={viewMode === 'month' ? 'primary' : 'ghost'} onClick={() => setViewMode('month')} className="px-3 py-1 !rounded-full text-sm flex items-center gap-2">
+                        <Calendar size={16} className="sm:mr-1" />
+                        <span className="hidden sm:inline">Месяц</span>
+                    </Button>
+                    <Button variant={viewMode === 'year' ? 'primary' : 'ghost'} onClick={() => setViewMode('year')} className="px-3 py-1 !rounded-full text-sm flex items-center gap-2">
+                        <ListChecks size={16} className="sm:mr-1" />
+                        <span className="hidden sm:inline">Год</span>
+                    </Button>
                 </div>
             </div>
-        </aside>
 
-        {/* Правая панель */}
-        <main className="lg:col-span-3">
-             <div className="flex items-center justify-between mb-4">
-                 <h2 className="text-xl font-semibold capitalize text-brand-text-secondary">
-                    {viewMode === 'month' ? format(currentDate, 'LLLL yyyy', { locale: ru }) : format(currentDate, 'yyyy год')}
-                 </h2>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold capitalize text-gray-700">
+                    {viewMode === 'month' ? format(currentDate, "LLLL yyyy 'г.'", { locale: ru }) : format(currentDate, "yyyy 'год'")}
+                </h2>
                 <div className="flex gap-2">
-                    <Button variant="secondary" onClick={() => changeDate(-1)} className="!rounded-full h-8 w-8 p-0"><ChevronLeft size={20} /></Button>
-                    <Button variant="secondary" onClick={() => changeDate(1)} className="!rounded-full h-8 w-8 p-0"><ChevronRight size={20} /></Button>
+                    <button onClick={() => changeDate(-1)} className="h-8 w-8 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors">
+                        <ChevronLeft size={20} />
+                    </button>
+                    <button onClick={() => changeDate(1)} className="h-8 w-8 flex items-center justify-center rounded-full bg-white border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors">
+                        <ChevronRight size={20} />
+                    </button>
                 </div>
-             </div>
-             <AnimatePresence mode="wait">
+            </div>
+
+            <AnimatePresence mode="wait">
                 <motion.div key={viewMode} initial={{opacity: 0, y: 10}} animate={{opacity: 1, y: 0}} exit={{opacity: 0, y: -10}}>
-                    {viewMode === 'month' ? <MonthView/> : <YearView/>}
+                    {viewMode === 'month' ? <MonthView currentDate={currentDate} allEvents={allEvents} onConfirmClick={handleConfirmClick} canEdit={canEdit} /> : <YearView currentDate={currentDate} allEvents={allEvents} onConfirmClick={handleConfirmClick} canEdit={canEdit} />}
                 </motion.div>
-             </AnimatePresence>
-        </main>
+            </AnimatePresence>
+        </div>
+      </motion.div>
     </div>
+    </>
   );
 }

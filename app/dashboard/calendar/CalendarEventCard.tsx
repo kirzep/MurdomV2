@@ -4,12 +4,15 @@
 import { CalendarEvent } from "@/lib/calendarHelper";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { Check } from "lucide-react";
 
 interface CalendarEventCardProps {
   event: CalendarEvent;
+  onConfirmClick: (event: CalendarEvent) => void;
+  canEdit: boolean;
 }
 
-const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event }) => {
+const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onConfirmClick, canEdit }) => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
   const avatarSrc = event.catAvatarUrl
     ? `${appUrl}${event.catAvatarUrl}`
@@ -28,12 +31,9 @@ const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event }) => {
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
+      className={`flex items-center gap-2 rounded-md p-1.5 text-xs font-medium transition-colors ${colorClasses}`}
     >
-      <Link
-        href={`/dashboard/cat/${event.catId}`}
-        title={`${event.catName}: ${event.stageText}`}
-        className={`flex w-full items-center gap-2 rounded-md p-1.5 text-xs font-medium transition-colors ${colorClasses}`}
-      >
+      <Link href={`/dashboard/cat/${event.catId}`} className="flex items-center gap-2 flex-grow min-w-0">
         <img
           src={avatarSrc}
           alt={event.catName}
@@ -41,9 +41,19 @@ const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event }) => {
         />
         <span className="truncate">{event.catName}</span>
         {event.isProjected && (
-          <span className="ml-auto font-bold" title="Прогнозируемое событие">!</span>
+          <span className="ml-auto font-bold flex-shrink-0" title="Прогнозируемое событие">!</span>
         )}
       </Link>
+      
+      {canEdit && event.canConfirmVaccination && (
+        <button
+          onClick={() => onConfirmClick(event)}
+          className="flex-shrink-0 w-5 h-5 bg-green-200 text-green-800 rounded-full flex items-center justify-center hover:bg-green-300 transition-colors"
+          title="Отметить как выполненную"
+        >
+          <Check size={12} />
+        </button>
+      )}
     </motion.div>
   );
 };
