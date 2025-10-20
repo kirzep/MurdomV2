@@ -12,14 +12,11 @@ import { Search, Plus, X, Trash2 } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
-import ChatWidget from '../components/ChatWidget';
 import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
 import RevaccinationAlerts from './RevaccinationAlerts';
 import RevaccinationModal from './RevaccinationModal';
 import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
-import MurdomAiWidget from '../components/AiAssistantWidget';
-import FloatingActionMenu from '../components/FloatingActionMenu';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -49,8 +46,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
   const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
@@ -58,7 +53,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
   const [activeFilter, setActiveFilter] = useState<CatStatus>('В приюте');
   
   const canEdit = session?.user.role !== Role.VOLUNTEER;
-  const canUseAiAssistant = session?.user.role === Role.MEDICAL_STAFF || session?.user.role === Role.TRUSTED_PERSON || session?.user.role === Role.DEVELOPER;
 
   const filteredCats = useMemo(() => {
     const sorted = [...cats].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -162,8 +156,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
     <>
       <PatchNotesModal isOpen={showPatchNotes} onClose={handleClosePatchNotes} version={CURRENT_APP_VERSION} />
       {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
-      <ChatWidget isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
-      <MurdomAiWidget isOpen={isAiAssistantOpen} onClose={() => setIsAiAssistantOpen(false)} />
       <RevaccinationModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} alerts={vaccinationAlerts} />
       
       <motion.div 
@@ -247,12 +239,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
             </motion.div>
         </main>
           
-        <FloatingActionMenu
-          onChatClick={() => setIsChatOpen(true)}
-          onAiClick={() => setIsAiAssistantOpen(true)}
-          canUseAi={canUseAiAssistant}
-        />
-
         <AnimatePresence>
             {isSelectionMode && (
                 <motion.div
