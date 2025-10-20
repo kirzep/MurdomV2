@@ -22,28 +22,22 @@ export async function POST(request: Request) {
 
         const bytes = await file.arrayBuffer();
         const originalBuffer = Buffer.from(bytes);
-
         const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+
         let finalBuffer: Buffer;
         let finalFileName: string;
         let finalFileType: string;
 
-        // ИСПРАВЛЕНИЕ: Добавляем блок try...catch для обработки неизвестных форматов
         try {
-            if (file.type.startsWith('image/') && file.type !== 'image/heic' && file.type !== 'image/heif') {
-                // Обрабатываем только известные и поддерживаемые форматы
-                finalBuffer = await sharp(originalBuffer)
-                    .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
-                    .jpeg({ quality: 85 })
-                    .toBuffer();
-                finalFileName = `${uniqueName}.jpeg`;
-                finalFileType = 'image/jpeg';
-            } else {
-                // Если формат неизвестен (например, HEIC), сохраняем как есть
-                throw new Error("Unsupported format for optimization, saving original.");
-            }
+            // Attempt to process the image with Sharp
+            finalBuffer = await sharp(originalBuffer)
+                .resize(1024, 1024, { fit: 'inside', withoutEnlargement: true })
+                .jpeg({ quality: 85 })
+                .toBuffer();
+            finalFileName = `${uniqueName}.jpeg`;
+            finalFileType = 'image/jpeg';
         } catch (error) {
-            // Если sharp не смог обработать файл, сохраняем оригинал
+            // If sharp fails, save the original file
             console.log("Sharp processing failed, saving original file:", error);
             finalBuffer = originalBuffer;
             const fileExtension = path.extname(file.name);
