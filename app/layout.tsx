@@ -6,7 +6,6 @@ import NextAuthProvider from './components/NextAuthProvider'
 import PWAInstaller from './components/PWAInstaller'
 import ConnectionStatusBanner from './components/ConnectionStatusBanner'
 import AppShell from './components/AppShell'
-import PawsBackground from './components/PawsBackground'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -56,7 +55,6 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body>
-        <PawsBackground />
         {/* === ИЗМЕНЕНИЕ ЗДЕСЬ: Убраны классы "relative z-10" === */}
         <div className="content-wrapper">
             <ConnectionStatusBanner />

@@ -8,7 +8,6 @@ const ALLOWED_FOLDERS = [
   'dashboard_background_icons',
   'loading_screen',
   'dashboard_catcard_background_icons',
-  'background_paws' // <--- ДОБАВЛЕНО
 ];
 
 export async function GET(
