@@ -1,25 +1,31 @@
 // app/components/ui/Portal.tsx
 "use client";
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface PortalProps {
   children: ReactNode;
 }
 
-const Portal: React.FC<PortalProps> = ({ children }) => {
+const Portal = ({ children }: PortalProps) => {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Устанавливаем флаг, что компонент смонтирован на клиенте
     setMounted(true);
-    // При размонтировании компонента ничего не делаем,
-    // так как React сам удалит детей из портала.
     return () => setMounted(false);
   }, []);
 
-  // Рендерим детей в портал только на клиенте, когда document.body доступен
-  return mounted ? createPortal(children, document.body) : null;
+  // Если мы на сервере или еще не смонтировались — ничего не рендерим
+  if (!mounted) {
+    return null;
+  }
+
+  // "Телепортируем" детей в конец тега <body>
+  // Это позволяет модальным окнам быть поверх всего остального интерфейса
+  // и не зависеть от z-index родительских блоков
+  return createPortal(children, document.body);
 };
 
 export default Portal;

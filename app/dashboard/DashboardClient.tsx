@@ -8,14 +8,13 @@ import { Cat, CatStatus, Role } from '@/types';
 import CatCard from './CatCard';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Search, Plus, X, Trash2 } from 'lucide-react';
+import { Search, Plus, X, Trash2, Cat as CatIcon } from 'lucide-react';
 import AddCatModal from './AddCatModal';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
 import RevaccinationAlerts from './RevaccinationAlerts';
-import RevaccinationModal from './RevaccinationModal';
 import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
 
 const containerVariants = {
@@ -23,18 +22,14 @@ const containerVariants = {
   visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
-const CURRENT_APP_VERSION = '2.3.0'; // Обновляем версию
+const CURRENT_APP_VERSION = '2.3.0';
 
-// === НОВЫЙ КОМПОНЕНТ ДЛЯ КНОПОК ФИЛЬТРА ===
-const FilterButton = ({ icon, label, isActive, onClick }: { icon: string; label: string; isActive: boolean; onClick: () => void; }) => (
-    <button
-        onClick={onClick}
-        className={`px-4 py-2 flex items-center gap-2 rounded-full font-semibold transition-colors text-sm ${isActive ? 'bg-brand-primary text-white' : 'bg-brand-surface text-brand-text-secondary hover:bg-brand-border'}`}
-    >
-        <img src={icon} alt="" className="w-5 h-5" />
-        {label}
-    </button>
-);
+// Конфигурация вкладок фильтра
+const FILTER_TABS: { id: CatStatus; label: string; icon: string }[] = [
+    { id: 'В приюте', label: 'В приюте', icon: '/assets/icons/archive_sections/archive.png' },
+    { id: 'Дома', label: 'Дома', icon: '/assets/icons/archive_sections/home.png' },
+    { id: 'Умерли', label: 'На радуге', icon: '/assets/icons/archive_sections/dead.png' },
+];
 
 export default function DashboardClient({ loadingIcons }: { loadingIcons: string[] }) {
   const { data: session, status } = useSession();
@@ -44,9 +39,10 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
   const [cats, setCats] = useState<Cat[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery] = useDebounce(searchQuery, 400);
+  
   const [isAddCatModalOpen, setIsAddCatModalOpen] = useState(false);
-  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [showPatchNotes, setShowPatchNotes] = useState(false);
+  
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
   
@@ -61,7 +57,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
         : sorted.filter(cat => cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
     return searched.filter(cat => cat.status === activeFilter);
   }, [cats, debouncedSearchQuery, activeFilter]);
-
 
   const vaccinationAlerts = useMemo(() => {
     return cats
@@ -156,7 +151,6 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
     <>
       <PatchNotesModal isOpen={showPatchNotes} onClose={handleClosePatchNotes} version={CURRENT_APP_VERSION} />
       {canEdit && <AddCatModal isOpen={isAddCatModalOpen} onClose={() => setIsAddCatModalOpen(false)} onCatAdded={handleCatAdded} />}
-      <RevaccinationModal isOpen={isAlertsModalOpen} onClose={() => setIsAlertsModalOpen(false)} alerts={vaccinationAlerts} />
       
       <motion.div 
         initial={{ opacity: 0 }}
@@ -164,25 +158,43 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
         transition={{ duration: 0.5 }}
         className="min-h-screen"
       >
-        <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm">
+        {/* --- ОБНОВЛЕННЫЙ ХЕДЕР --- */}
+        <header className="bg-brand-surface/80 backdrop-blur-lg sticky top-0 z-40 shadow-sm border-b border-white/20 transition-all duration-300">
             <div className="container mx-auto px-4 py-3">
-                <div className="flex items-center justify-between gap-4">
-                    <h1 className="text-xl md:text-2xl font-bold text-brand-primary flex items-center gap-2">
-                      <img src="/icons/android-chrome-512x512.png" alt="Логотип" className="h-7 w-7" />
-                    </h1>
-                    <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-lg">
+                <div className="flex items-center gap-3">
+                    
+                    {/* Поле поиска - теперь занимает всё доступное место */}
+                    <div className="flex-1 relative group">
+                        {/* Декоративное свечение при фокусе */}
+                        <div className="absolute inset-0 bg-brand-primary/5 rounded-2xl blur-md transition-opacity opacity-0 group-focus-within:opacity-100 pointer-events-none" />
+                        
                         <Input 
-                            placeholder="Поиск по кличке..."
-                            icon={<Search size={22}/>}
+                            placeholder="Найти хвостика..."
+                            icon={<Search size={20} className="text-brand-primary/50 group-focus-within:text-brand-primary transition-colors"/>}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-12 rounded-2xl bg-white/60 border-transparent shadow-sm hover:bg-white focus:bg-white focus:shadow-md transition-all text-base pl-11"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    {/* Кнопка добавления - яркая и красивая */}
+                    <div className="flex items-center shrink-0">
                         {canEdit && (
-                          <Button onClick={() => setIsAddCatModalOpen(true)} className="p-2 h-12 w-12 sm:w-auto sm:px-4 rounded-full sm:rounded-lg">
-                              <Plus size={26} className="sm:mr-2"/> 
-                              <span className="hidden sm:inline">Добавить</span>
+                          <Button 
+                              onClick={() => setIsAddCatModalOpen(true)} 
+                              className="
+                                  !p-0 h-12 w-12 sm:w-auto sm:px-5 rounded-2xl 
+                                  bg-gradient-to-tr from-brand-primary to-rose-400 
+                                  hover:from-brand-primary-hover hover:to-rose-500
+                                  shadow-lg shadow-brand-primary/25 
+                                  hover:shadow-xl hover:shadow-brand-primary/40 hover:-translate-y-0.5
+                                  active:scale-95
+                                  transition-all duration-300
+                                  flex items-center justify-center gap-2
+                              "
+                          >
+                              <Plus size={26} strokeWidth={2.5} className="text-white" /> 
+                              <span className="hidden sm:inline font-bold text-white">Создать</span>
                           </Button>
                         )}
                     </div>
@@ -190,52 +202,79 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
             </div>
         </header>
           
-        <main className="container mx-auto p-4">
-            {/* === НОВЫЙ БЛОК ФИЛЬТРОВ === */}
-            <div className="flex justify-center gap-2 mb-6">
-                <FilterButton
-                    icon="/assets/icons/archive_sections/archive.png"
-                    label="В приюте"
-                    isActive={activeFilter === 'В приюте'}
-                    onClick={() => setActiveFilter('В приюте')}
-                />
-                <FilterButton
-                    icon="/assets/icons/archive_sections/home.png"
-                    label="Дома"
-                    isActive={activeFilter === 'Дома'}
-                    onClick={() => setActiveFilter('Дома')}
-                />
-                <FilterButton
-                    icon="/assets/icons/archive_sections/dead.png"
-                    label="На радуге"
-                    isActive={activeFilter === 'Умерли'}
-                    onClick={() => setActiveFilter('Умерли')}
-                />
+        <main className="container mx-auto p-4 pb-32">
+            
+            {/* Вкладки фильтра */}
+            <div className="flex justify-center mb-8">
+                <div className="flex p-1.5 bg-white/60 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-sm relative z-10">
+                    {FILTER_TABS.map((tab) => {
+                        const isActive = activeFilter === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveFilter(tab.id)}
+                                className={`
+                                    relative px-4 sm:px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-2
+                                    ${isActive ? 'text-brand-primary' : 'text-gray-500 hover:text-gray-700'}
+                                `}
+                            >
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeFilterTab"
+                                        className="absolute inset-0 bg-white shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] rounded-2xl border border-white/50"
+                                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    />
+                                )}
+                                <span className="relative z-10 flex items-center gap-2">
+                                    <img 
+                                        src={tab.icon} 
+                                        alt="" 
+                                        className={`w-5 h-5 transition-all duration-300 ${isActive ? 'scale-110 drop-shadow-sm' : 'grayscale opacity-60'}`} 
+                                    />
+                                    <span>{tab.label}</span>
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
            
-           {activeFilter === 'В приюте' && <RevaccinationAlerts alerts={vaccinationAlerts} onClick={() => setIsAlertsModalOpen(true)} />}
+           {activeFilter === 'В приюте' && (
+               <div className="max-w-4xl mx-auto">
+                   <RevaccinationAlerts alerts={vaccinationAlerts} />
+               </div>
+           )}
             
             <motion.div 
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-max"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
+              key={activeFilter}
             >
-                {filteredCats.length > 0 ? filteredCats.map(cat => (
-                    <CatCard 
-                        key={cat.id} 
-                        cat={cat}
-                        isSelected={selectedCats.includes(cat.id)}
-                        isSelectionMode={isSelectionMode}
-                        onToggleSelection={handleToggleSelection}
-                        onStartSelectionMode={handleStartSelectionMode}
-                    />
-                )) : (
-                    <div className="col-span-full text-center py-16 text-gray-500">
-                        <p className="font-semibold text-lg">Кошки не найдены</p>
-                        <p>В этой категории пока нет записей.</p>
-                    </div>
-                )}
+                <AnimatePresence mode="popLayout">
+                    {filteredCats.length > 0 ? filteredCats.map(cat => (
+                        <CatCard 
+                            key={cat.id} 
+                            cat={cat}
+                            isSelected={selectedCats.includes(cat.id)}
+                            isSelectionMode={isSelectionMode}
+                            onToggleSelection={handleToggleSelection}
+                            onStartSelectionMode={handleStartSelectionMode}
+                        />
+                    )) : (
+                        <motion.div 
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} 
+                            className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400"
+                        >
+                            <div className="w-24 h-24 bg-gray-100/50 rounded-full flex items-center justify-center mb-4">
+                                <CatIcon size={48} className="opacity-20" />
+                            </div>
+                            <p className="font-bold text-lg">Список пуст</p>
+                            <p className="text-sm opacity-70">В этой категории пока никого нет.</p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </motion.div>
         </main>
           
@@ -248,11 +287,11 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
                     transition={{ type: 'spring', stiffness: 400, damping: 40 }}
                     className="fixed bottom-24 inset-x-4 max-w-md mx-auto z-50"
                 >
-                    <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
+                    <div className="bg-white/90 backdrop-blur-xl text-gray-800 rounded-2xl p-3 shadow-2xl flex items-center justify-between border border-white/50 ring-1 ring-black/5">
                         <Button onClick={handleCancelSelection} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
                             <X size={24}/>
                         </Button>
-                        <span className="font-semibold text-sm">Выбрано: {selectedCats.length}</span>
+                        <span className="font-bold text-sm">Выбрано: {selectedCats.length}</span>
                         <Button onClick={handleDeleteSelected} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
                             <Trash2 size={24} className="sm:mr-2"/>
                             <span className="hidden sm:inline">Удалить</span>

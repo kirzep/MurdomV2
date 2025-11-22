@@ -3,12 +3,11 @@
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { Cat } from '@/types';
-import Spinner from '@/app/components/ui/Spinner';
-import Button from '@/app/components/ui/Button';
-import { Upload, Trash2, Download, Star, X, CheckCircle2 } from 'lucide-react';
+import { Upload, Trash2, Download, Star, X, CheckCircle2, Image as ImageIcon, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '@/app/components/ui/Portal';
 import useLongPress from '@/hooks/useLongPress';
+import { Loader2 } from 'lucide-react';
 
 interface Photo {
     id: string;
@@ -148,45 +147,35 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
         );
     };
     
-    if (isLoading) return <div className="h-[50vh] flex items-center justify-center"><Spinner /></div>;
+    if (isLoading) return <div className="h-[30vh] flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" /></div>;
 
     return (
-        <div className="p-4 md:p-6 min-h-[50vh]">
-            <AnimatePresence>
-                {isSelectionMode && (
-                     <motion.div
-                        initial={{ y: "120%" }}
-                        animate={{ y: 0 }}
-                        exit={{ y: "120%" }}
-                        className="fixed bottom-24 inset-x-4 max-w-md mx-auto z-50"
-                     >
-                        <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
-                            <Button onClick={() => setIsSelectionMode(false)} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
-                                <X size={24}/>
-                            </Button>
-                            <span className="font-semibold text-sm">Выбрано: {selectedPhotos.length}</span>
-                            <div className="flex gap-2">
-                                <Button onClick={handleDownloadSelected} variant="secondary" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
-                                    <Download size={24} className="sm:mr-2"/>
-                                    <span className="hidden sm:inline">Скачать</span>
-                                </Button>
-                                <Button onClick={() => handleDelete(selectedPhotos)} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
-                                    <Trash2 size={24} className="sm:mr-2"/>
-                                    <span className="hidden sm:inline">Удалить</span>
-                                </Button>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+        <div className="bg-white/80 backdrop-blur-xl border border-white shadow-lg p-6 sm:p-8 rounded-3xl min-h-[50vh]">
+            <div className="flex items-center gap-3 text-gray-800 mb-6">
+                <div className="p-2 bg-purple-50 text-purple-500 rounded-xl">
+                    <ImageIcon size={24} />
+                </div>
+                <h3 className="text-xl font-bold">Фотогалерея</h3>
+                <span className="text-sm text-gray-400 font-medium ml-auto">{photos.length} фото</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                 {/* Кнопка загрузки */}
                  {canEdit && (
-                    <label className="aspect-square bg-slate-100 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-slate-200 transition-colors text-slate-500">
-                        {isUploading ? <Spinner/> : <Upload size={32}/>}
-                        <span className="text-xs mt-2 font-semibold">Загрузить</span>
+                    <label className="aspect-square bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-white hover:border-brand-primary/50 hover:shadow-md transition-all group">
+                        {isUploading ? (
+                            <Loader2 className="animate-spin text-brand-primary" size={32}/>
+                        ) : (
+                            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                <Plus size={24} className="text-gray-400 group-hover:text-brand-primary transition-colors"/>
+                            </div>
+                        )}
+                        <span className="text-xs mt-3 font-bold text-gray-400 group-hover:text-brand-primary">Добавить</span>
                         <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileChange} disabled={isUploading}/>
                     </label>
                 )}
+
+                {/* Список фото */}
                 {photos.map((photo, index) => (
                     <PhotoItem
                         key={photo.id}
@@ -200,19 +189,110 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
                     />
                 ))}
             </div>
+
+            {/* Пустое состояние */}
+            {!isLoading && photos.length === 0 && !isUploading && (
+                <div className="flex flex-col items-center justify-center py-10 opacity-50">
+                     <p className="text-sm">В галерее пока пусто</p>
+                </div>
+            )}
             
+            {/* Панель массовых действий */}
+            <AnimatePresence>
+                {isSelectionMode && (
+                     <motion.div
+                        initial={{ y: "120%", opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: "120%", opacity: 0 }}
+                        className="fixed bottom-6 inset-x-4 max-w-lg mx-auto z-40"
+                     >
+                        <div className="bg-white/90 backdrop-blur-xl text-gray-800 rounded-2xl p-2 pl-4 shadow-2xl flex items-center justify-between border border-white/50 ring-1 ring-black/5">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setIsSelectionMode(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                    <X size={20}/>
+                                </button>
+                                <span className="font-bold text-sm">Выбрано: {selectedPhotos.length}</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={handleDownloadSelected} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors">
+                                    <Download size={18}/>
+                                    <span className="hidden sm:inline">Скачать</span>
+                                </button>
+                                <button onClick={() => handleDelete(selectedPhotos)} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors">
+                                    <Trash2 size={18}/>
+                                    <span className="hidden sm:inline">Удалить</span>
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            
+            {/* Лайтбокс (Просмотр) */}
             <Portal>
                 <AnimatePresence>
                 {viewerOpen && (
-                    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 bg-black/90 z-50 flex flex-col" onClick={() => setViewerOpen(false)}>
-                        <div className="flex-shrink-0 p-4 flex justify-end gap-2">
-                            <Button variant="secondary" onClick={(e) => { e.stopPropagation(); handleDownload(photos[activeIndex].filePath); }} className="!p-3 !rounded-full"><Download/></Button>
-                            {canEdit && <Button variant="secondary" onClick={(e) => { e.stopPropagation(); handleSetAvatar(photos[activeIndex].id); }} disabled={photos[activeIndex].isAvatar} className="!p-3 !rounded-full"><Star/></Button>}
-                            {canEdit && <Button variant="danger" onClick={(e) => { e.stopPropagation(); handleDelete([photos[activeIndex].id]); setViewerOpen(false); }} disabled={photos[activeIndex].isAvatar} className="!p-3 !rounded-full"><Trash2/></Button>}
-                            <Button variant="secondary" onClick={() => setViewerOpen(false)} className="!p-3 !rounded-full"><X/></Button>
+                    <motion.div 
+                        initial={{opacity:0}} 
+                        animate={{opacity:1}} 
+                        exit={{opacity:0}} 
+                        className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md"
+                        onClick={() => setViewerOpen(false)}
+                    >
+                        {/* Тулбар */}
+                        <div className="absolute top-0 left-0 right-0 p-4 flex justify-between z-20" onClick={(e) => e.stopPropagation()}>
+                            <div className="text-white/70 text-sm font-medium bg-black/50 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">
+                                {activeIndex + 1} / {photos.length}
+                            </div>
+                            <button onClick={() => setViewerOpen(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-colors">
+                                <X size={24}/>
+                            </button>
                         </div>
+
+                        {/* Контент */}
                         <div className="flex-grow flex items-center justify-center p-4">
-                             <img src={`${appUrl}${photos[activeIndex].filePath}`} alt={`Фото ${cat.name} ${activeIndex + 1}`} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()}/>
+                             <img 
+                                src={`${appUrl}${photos[activeIndex].filePath}`} 
+                                alt={`Фото ${cat.name}`} 
+                                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+                                onClick={(e) => e.stopPropagation()}
+                             />
+                        </div>
+
+                        {/* Нижняя панель действий */}
+                        <div className="absolute bottom-6 left-0 right-0 flex justify-center z-20 pointer-events-none">
+                            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 p-2 rounded-2xl shadow-2xl pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                                <button 
+                                    onClick={() => handleDownload(photos[activeIndex].filePath)} 
+                                    className="p-3 text-white hover:bg-white/20 rounded-xl transition-colors"
+                                    title="Скачать"
+                                >
+                                    <Download size={24}/>
+                                </button>
+                                
+                                {canEdit && (
+                                    <>
+                                        <button 
+                                            onClick={() => handleSetAvatar(photos[activeIndex].id)} 
+                                            disabled={photos[activeIndex].isAvatar} 
+                                            className={`p-3 rounded-xl transition-colors ${photos[activeIndex].isAvatar ? 'text-yellow-400' : 'text-white hover:bg-white/20'}`}
+                                            title="Сделать аватаром"
+                                        >
+                                            <Star size={24} fill={photos[activeIndex].isAvatar ? "currentColor" : "none"} />
+                                        </button>
+                                        
+                                        <div className="w-px h-8 bg-white/20" />
+                                        
+                                        <button 
+                                            onClick={() => { handleDelete([photos[activeIndex].id]); setViewerOpen(false); }} 
+                                            className="p-3 text-red-400 hover:bg-red-500/20 hover:text-red-200 rounded-xl transition-colors"
+                                            title="Удалить"
+                                        >
+                                            <Trash2 size={24}/>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -222,7 +302,7 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
     );
 };
 
-// === ИЗМЕНЕНИЕ: Обертка теперь button, а не div ===
+// Компонент одной карточки фото
 const PhotoItem = ({ photo, index, isSelected, isSelectionMode, onStartSelection, onToggleSelection, onOpenViewer }: any) => {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
     
@@ -236,25 +316,51 @@ const PhotoItem = ({ photo, index, isSelected, isSelectionMode, onStartSelection
         <motion.button 
             type="button"
             layout
-            initial={{scale: 0.8, opacity: 0}}
-            animate={{scale: 1, opacity: 1}}
-            className={`relative aspect-square rounded-lg overflow-hidden group cursor-pointer border-2 ${isSelected ? 'border-blue-500' : 'border-transparent'}`}
+            initial={{scale: 0.9, opacity: 0}}
+            animate={{scale: isSelected ? 0.95 : 1, opacity: 1}}
+            whileHover={{ y: isSelectionMode ? 0 : -2 }}
+            className={`
+                relative aspect-square rounded-2xl overflow-hidden cursor-pointer 
+                bg-gray-100 border transition-all duration-300
+                ${isSelected 
+                    ? 'ring-4 ring-brand-primary border-transparent' 
+                    : 'border-transparent hover:shadow-lg'
+                }
+            `}
             {...longPressEvents}
         >
-            <div className={`transition-opacity duration-200 ${isSelectionMode ? 'opacity-60' : 'opacity-100'}`}>
-                {/* === ИЗМЕНЕНИЕ: Добавлен alt-текст === */}
-                <img src={`${appUrl}${photo.filePath}`} alt={`Фото ${index + 1}`} className="w-full h-full object-cover"/>
-            </div>
+            <img 
+                src={`${appUrl}${photo.filePath}`} 
+                alt={`Фото ${index + 1}`} 
+                className={`w-full h-full object-cover transition-all duration-500 ${isSelectionMode ? 'opacity-80 scale-105' : 'hover:scale-110'}`}
+                loading="lazy"
+            />
+            
+            {/* Бейдж аватара (звездочка) */}
+            {photo.isAvatar && !isSelectionMode && (
+                <div className="absolute top-2 right-2 bg-black/30 backdrop-blur-md p-1.5 rounded-full text-yellow-400 shadow-sm border border-white/10">
+                    <Star size={12} fill="currentColor" />
+                </div>
+            )}
 
+            {/* Оверлей выбора */}
             <AnimatePresence>
             {isSelectionMode && (
                 <motion.div
-                    initial={{scale:0.5, opacity:0}} animate={{scale:1, opacity:1}} exit={{scale:0.5, opacity:0}}
-                    className="absolute inset-0 flex items-center justify-center bg-blue-500/20"
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }}
+                    className={`
+                        absolute inset-0 flex items-center justify-center 
+                        ${isSelected ? 'bg-brand-primary/20 backdrop-blur-[1px]' : 'bg-transparent'}
+                    `}
                 >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-white/80 border-2'}`}>
-                        {isSelected && <CheckCircle2 size={24} className="text-white"/>}
-                    </div>
+                    <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white ${isSelected ? 'bg-brand-primary text-white' : 'bg-white/40'}`}>
+                        {isSelected && <CheckCircle2 size={20} strokeWidth={3}/>}
+                    </motion.div>
                 </motion.div>
             )}
             </AnimatePresence>

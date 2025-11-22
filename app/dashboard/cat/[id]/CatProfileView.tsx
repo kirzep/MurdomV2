@@ -2,8 +2,7 @@
 "use client";
 
 import { useState, FormEvent, ChangeEvent } from "react";
-// === ИЗМЕНЕНИЕ: Убрали Role из импорта ===
-import { Cat, Document as DocType, TreatmentType, AuditLog as AuditLogType, CatStatus } from "@/types"; 
+import { Cat, Document as DocType, TreatmentType, AuditLog as AuditLogType } from "@/types"; 
 import CatProfileHeader from "./CatProfileHeader";
 import NotesSection from "./NotesSection";
 import TreatmentsSection from "./TreatmentsSection";
@@ -15,8 +14,9 @@ import Input from "@/app/components/ui/Input";
 import Button from "@/app/components/ui/Button";
 import AuditLogModal from './AuditLogModal';
 import ScanDocumentModal from "./ScanDocumentModal";
-import { FileUp } from "lucide-react";
+import { FileUp, Loader2, Syringe, Calendar, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 const treatmentMeta: Record<TreatmentType, { name: string }> = {
   [TreatmentType.WORMS]: { name: 'Дегельминтизация' },
@@ -40,8 +40,6 @@ interface CatProfileViewProps {
 
 export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }: CatProfileViewProps) {
     const router = useRouter();
-    
-    // === ИЗМЕНЕНИЕ: Убрали состояния и функции для экспорта PDF, так как они теперь в page.tsx ===
     
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isAddTreatmentModalOpen, setIsAddTreatmentModalOpen] = useState(false);
@@ -178,7 +176,11 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
     };
 
     return (
-        <>
+        <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="pb-24"
+        >
             <ScanDocumentModal isOpen={isScanModalOpen} onClose={() => setIsScanModalOpen(false)} onScanComplete={handleScanComplete} />
             <DocumentViewerModal 
                 doc={viewingDoc} 
@@ -187,83 +189,116 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
                 onDelete={() => viewingDoc && handleDeleteSingleDocument(viewingDoc.id)}
             />
             <AuditLogModal isOpen={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} logs={auditLogs} catCreator={cat?.creator} catCreatedAt={cat?.createdAt} />
+            
             {canEdit && (
                 <EditCatModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onCatUpdated={onDataChange} cat={cat} />
             )}
+
              {canEdit && (
-                <Modal isOpen={isAddTreatmentModalOpen} onClose={() => setIsAddTreatmentModalOpen(false)} title="Добавить запись об обработке">
-                    <form onSubmit={handleAddTreatment} className="space-y-4">
-                        <div>
-                            <label htmlFor="treatmentType" className="block text-sm font-medium text-brand-text-secondary mb-1">Тип обработки</label>
-                            <select id="treatmentType" value={treatmentForm.type} onChange={e => setTreatmentForm({...treatmentForm, type: e.target.value as TreatmentType})} className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary">
-                                {Object.entries(treatmentMeta).map(([key, {name}]) => <option key={key} value={key} className="capitalize">{name}</option>)}
-                            </select>
+                <Modal isOpen={isAddTreatmentModalOpen} onClose={() => setIsAddTreatmentModalOpen(false)} title="Новая запись">
+                    <form onSubmit={handleAddTreatment} className="space-y-5">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Тип обработки</label>
+                            <div className="relative">
+                                <Syringe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <select 
+                                    value={treatmentForm.type} 
+                                    onChange={e => setTreatmentForm({...treatmentForm, type: e.target.value as TreatmentType})} 
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all font-medium text-gray-700 appearance-none"
+                                >
+                                    {Object.entries(treatmentMeta).map(([key, {name}]) => <option key={key} value={key} className="capitalize">{name}</option>)}
+                                </select>
+                            </div>
                         </div>
                         
                         {treatmentForm.type === TreatmentType.VACCINATION && (
-                            <div>
-                                <label htmlFor="vaccinationStage" className="block text-sm font-medium text-brand-text-secondary mb-1">Этап вакцинации</label>
-                                <select 
-                                    id="vaccinationStage"
-                                    value={treatmentForm.vaccinationStage} 
-                                    onChange={e => setTreatmentForm({...treatmentForm, vaccinationStage: e.target.value})}
-                                    className="w-full px-3 py-2 bg-brand-background border border-brand-border rounded-lg outline-none focus:ring-2 focus:ring-brand-primary"
-                                >
-                                    <option value="first">Первичная вакцинация</option>
-                                    <option value="second">Ревакцинация</option>
-                                    <option value="revaccination">Ежегодная вакцинация</option>
-                                </select>
+                             <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Этап вакцинации</label>
+                                <div className="relative">
+                                    <select 
+                                        value={treatmentForm.vaccinationStage} 
+                                        onChange={e => setTreatmentForm({...treatmentForm, vaccinationStage: e.target.value})}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all font-medium text-gray-700"
+                                    >
+                                        <option value="first">Первичная вакцинация</option>
+                                        <option value="second">Ревакцинация</option>
+                                        <option value="revaccination">Ежегодная вакцинация</option>
+                                    </select>
+                                </div>
                             </div>
                         )}
 
-                        <div>
-                           <label htmlFor="treatmentDate" className="block text-sm font-medium text-brand-text-secondary mb-1">Дата</label>
-                           <Input id="treatmentDate" type="date" value={treatmentForm.date} onChange={e => setTreatmentForm({...treatmentForm, date: e.target.value})} required/>
+                        <div className="space-y-1.5">
+                           <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Дата</label>
+                           <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input 
+                                    type="date" 
+                                    value={treatmentForm.date} 
+                                    onChange={e => setTreatmentForm({...treatmentForm, date: e.target.value})} 
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all font-medium text-gray-700"
+                                    required
+                                />
+                           </div>
                         </div>
 
-                        <div>
-                           <label htmlFor="productName" className="block text-sm font-medium text-brand-text-secondary mb-1">Название препарата/вакцины</label>
-                           <Input id="productName" placeholder="Название..." value={treatmentForm.productName} onChange={e => setTreatmentForm({...treatmentForm, productName: e.target.value})} required/>
+                        <div className="space-y-1.5">
+                           <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Препарат</label>
+                           <div className="relative">
+                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input 
+                                    placeholder="Название препарата..." 
+                                    value={treatmentForm.productName} 
+                                    onChange={e => setTreatmentForm({...treatmentForm, productName: e.target.value})} 
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary outline-none transition-all font-medium text-gray-700"
+                                    required
+                                />
+                           </div>
                         </div>
 
-                        <Button type="submit" isLoading={isFormLoading} className="w-full">Добавить запись</Button>
+                        <Button type="submit" isLoading={isFormLoading} className="w-full h-12 text-lg rounded-xl shadow-lg shadow-brand-primary/20">
+                            Добавить запись
+                        </Button>
                     </form>
                 </Modal>
             )}
+
             {canEdit && (
                 <Modal isOpen={isAddDocModalOpen} onClose={() => {setDocFilesToUpload([]); setIsAddDocModalOpen(false);}} title="Загрузка документов">
-                     <form onSubmit={handleAddDocument} className="space-y-4">
-                        <label htmlFor="file-upload" className="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed border-brand-border rounded-lg cursor-pointer hover:bg-brand-background">
-                            <FileUp className="w-10 h-10 text-brand-text-secondary mb-2" />
-                            <span className="font-semibold text-brand-primary">Выберите файлы</span>
-                            <span className="text-sm text-brand-text-secondary">или перетащите их сюда</span>
+                     <form onSubmit={handleAddDocument} className="space-y-5">
+                        <label htmlFor="file-upload" className="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:bg-gray-50 hover:border-brand-primary transition-all group">
+                            <div className="p-3 bg-gray-100 rounded-full mb-3 group-hover:bg-brand-primary/10 transition-colors">
+                                <FileUp className="w-8 h-8 text-gray-400 group-hover:text-brand-primary transition-colors" />
+                            </div>
+                            <span className="font-bold text-gray-700 group-hover:text-brand-primary">Выберите файлы</span>
+                            <span className="text-sm text-gray-400 mt-1">или перетащите их сюда</span>
                         </label>
                         <input id="file-upload" type="file" multiple onChange={handleDocFilesChange} className="hidden"/>
                         
                         {docFilesToUpload.length > 0 && (
-                            <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                            <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                 {docFilesToUpload.map((docState) => (
-                                    <div key={docState.id}>
-                                        <label htmlFor={`docName-${docState.id}`} className="text-xs text-brand-text-secondary block mb-1">{docState.file.name}</label>
-                                        <Input 
-                                            id={`docName-${docState.id}`}
+                                    <div key={docState.id} className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                        <div className="text-xs text-gray-400 mb-1 truncate">{docState.file.name}</div>
+                                        <input 
                                             value={docState.customName} 
                                             onChange={e => handleSingleDocNameChange(docState.id, e.target.value)} 
-                                            placeholder="Название документа*" 
+                                            placeholder="Название документа (обязательно)" 
+                                            className="w-full bg-transparent border-b border-gray-300 focus:border-brand-primary outline-none py-1 text-sm font-medium text-gray-700 transition-colors"
                                             required 
                                         />
                                     </div>
                                 ))}
                             </div>
                         )}
-                        <Button type="submit" isLoading={isFormLoading} disabled={docFilesToUpload.length === 0} className="w-full">
+                        <Button type="submit" isLoading={isFormLoading} disabled={docFilesToUpload.length === 0} className="w-full h-12 rounded-xl">
                             Загрузить ({docFilesToUpload.length})
                         </Button>
                     </form>
                 </Modal>
             )}
 
-            <div className="p-4 md:p-6 space-y-6">
+            <div className="p-4 md:p-6 space-y-8 max-w-7xl mx-auto">
                  <CatProfileHeader
                     cat={cat}
                     canEdit={canEdit}
@@ -271,20 +306,42 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
                     onDelete={handleDeleteCat}
                     onInfoClick={() => setIsLogModalOpen(true)}
                 />
-                <div className="grid grid-cols-1 gap-6">
-                    <NotesSection cat={cat} onUpdate={handleNotesUpdate} canEdit={canEdit} />
-                    <TreatmentsSection cat={cat} canEdit={canEdit} onAddClick={() => { setTreatmentForm({type: TreatmentType.WORMS, date: new Date().toISOString().split('T')[0], productName: '', vaccinationStage: 'first'}); setIsAddTreatmentModalOpen(true); }} onDeleteClick={handleDeleteTreatment} />
-                    <DocumentsSection 
-                        cat={cat} 
-                        canEdit={canEdit} 
-                        onAddClick={() => { setDocFilesToUpload([]); setIsAddDocModalOpen(true); }} 
-                        onScanClick={() => setIsScanModalOpen(true)}
-                        onDocumentClick={setViewingDoc}
-                        onDataChange={onDataChange}
-                        onSingleDelete={handleDeleteSingleDocument}
-                    />
+                
+                {/* Сетка контента */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 auto-rows-min">
+                    {/* Левая колонка (Заметки и Документы) */}
+                    <div className="lg:col-span-4 flex flex-col gap-6">
+                         <NotesSection cat={cat} onUpdate={handleNotesUpdate} canEdit={canEdit} />
+                         <DocumentsSection 
+                            cat={cat} 
+                            canEdit={canEdit} 
+                            onAddClick={() => { setDocFilesToUpload([]); setIsAddDocModalOpen(true); }} 
+                            onScanClick={() => setIsScanModalOpen(true)}
+                            onDocumentClick={setViewingDoc}
+                            onDataChange={onDataChange}
+                            onSingleDelete={handleDeleteSingleDocument}
+                        />
+                    </div>
+                    
+                    {/* Правая колонка (Процедуры) */}
+                    <div className="lg:col-span-8">
+                        <TreatmentsSection 
+                            cat={cat} 
+                            canEdit={canEdit} 
+                            onAddClick={() => { 
+                                setTreatmentForm({
+                                    type: TreatmentType.WORMS, 
+                                    date: new Date().toISOString().split('T')[0], 
+                                    productName: '', 
+                                    vaccinationStage: 'first'
+                                }); 
+                                setIsAddTreatmentModalOpen(true); 
+                            }} 
+                            onDeleteClick={handleDeleteTreatment} 
+                        />
+                    </div>
                 </div>
             </div>
-        </>
+        </motion.div>
     );
 }

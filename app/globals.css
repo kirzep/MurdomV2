@@ -9,15 +9,13 @@
   }
 
   body {
-    @apply text-brand-text-primary;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    /* --- ИЗМЕНЕНИЕ: Включаем инерционную прокрутку на мобильных --- */
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .content-wrapper {
-      @apply bg-brand-background min-h-screen;
+  /* Заменяем простой цвет на сложный градиент */
+  /* Это создаст мягкий перелив от теплого бежевого к холодному серому */
+  background: radial-gradient(circle at top left, #fdfbf7 0%, #f3f4f6 100%);
+  min-height: 100vh;
+  color: rgb(var(--foreground-rgb));
+  /* Убедимся, что фон фиксирован */
+  background-attachment: fixed; 
   }
 }
 
@@ -67,4 +65,37 @@
   100% {
     transform: translateY(0px);
   }
+}
+
+.bg-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Чтобы сквозь шум можно было кликать */
+  z-index: -1; /* Помещаем НАД фоном body, но ПОД всем остальным контентом */
+  
+  /* Подключаем твой файл. Путь начинается от папки public */
+  background-image: url('/assets/noise_texture/0f2f3072-15b1-45ae-9560-44aa83e48593.jpg');
+  
+  /* Важно! Заставляем маленькую картинку повторяться */
+  background-repeat: repeat;
+  /* Можно немного уменьшить масштаб текстуры, если зерно слишком крупное */
+  /* background-size: 500px auto; */ 
+
+  /* Настраиваем, как текстура смешивается с градиентом */
+  /* overlay или soft-light отлично подходят для наложения текстур */
+  mix-blend-mode: overlay; 
+  
+  /* Ставим небольшую непрозрачность, чтобы текстура была лишь легким намеком */
+  opacity: 0.15; /* Попробуй значения от 0.1 до 0.25, если будет слишком тускло или ярко */
+}
+
+body {
+  /* Оставляем наш красивый градиент */
+  background: radial-gradient(circle at top left, #fdfbf7 0%, #f3f4f6 100%);
+  min-height: 100vh;
+  color: rgb(var(--foreground-rgb));
+  background-attachment: fixed;
 }

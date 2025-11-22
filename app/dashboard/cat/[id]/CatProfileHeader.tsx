@@ -4,10 +4,10 @@
 import { Cat } from "@/types";
 import { format } from "date-fns";
 import { ru } from 'date-fns/locale';
-import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle } from "lucide-react";
-import Button from "@/app/components/ui/Button";
+import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle, Share2 } from "lucide-react"; // Share2 added for future use maybe?
 import { getRevaccinationStatus, RevaccinationInfo } from "@/lib/revaccinationHelper";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 
 interface CatProfileHeaderProps {
   cat: Cat;
@@ -15,7 +15,6 @@ interface CatProfileHeaderProps {
   onEdit: () => void;
   onDelete: () => void;
   onInfoClick: () => void;
-  // onStatusChange - УБРАЛИ ЭТУ ПРОПСУ
 }
 
 const pluralizeYears = (age: number) => {
@@ -48,90 +47,146 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
       avatarSrc = `${appUrl}${cat.avatarUrl}`;
     }
   } else {
-    avatarSrc = `https://placehold.co/128x128/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
+    avatarSrc = `https://placehold.co/200x200/e2e8f0/64748b?text=${cat.name.charAt(0)}`;
   }
 
-  const bannerClasses = alertInfo.status === 'overdue'
-    ? "bg-brand-accent-bg border-brand-accent text-brand-accent-text"
-    : "bg-brand-warning-bg border-brand-warning text-brand-warning-text";
-    
+  const isOverdue = alertInfo.status === 'overdue';
+  const hasAlert = !!alertInfo.status && !!alertInfo.dueDate;
+
   return (
     <div className="space-y-4">
-      {alertInfo.status && alertInfo.dueDate && (
-        <div className={`border-l-4 p-4 rounded-r-lg ${bannerClasses}`} role="alert">
-          <div className="flex">
-            <div className="py-1"><AlertTriangle className="h-6 w-6 mr-4" /></div>
+      {/* Алерт о вакцинации */}
+      {hasAlert && (
+        <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`
+                relative overflow-hidden rounded-2xl p-4 border shadow-sm
+                ${isOverdue 
+                    ? "bg-red-50/90 border-red-200 text-red-900" 
+                    : "bg-amber-50/90 border-amber-200 text-amber-900"}
+            `}
+        >
+          <div className="flex items-start gap-4 z-10 relative">
+            <div className={`
+                p-2 rounded-full shrink-0
+                ${isOverdue ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"}
+            `}>
+                <AlertTriangle size={24} />
+            </div>
             <div>
-              <p className="font-bold">
-                {alertInfo.status === 'overdue' ? 'Внимание, задача просрочена!' : 'Требуется обработка!'}
+              <p className="font-bold text-lg leading-tight">
+                {isOverdue ? 'Внимание! Задача просрочена' : 'Требуется обработка'}
               </p>
-              <p className="text-sm">
-                {alertInfo.message} до {format(alertInfo.dueDate, 'd MMMM yy', { locale: ru })}.
+              <p className="text-sm mt-1 opacity-90 font-medium">
+                {alertInfo.message} {isOverdue ? 'была запланирована на' : 'запланирована на'} {format(alertInfo.dueDate!, 'd MMMM yyyy', { locale: ru })}.
               </p>
             </div>
           </div>
-        </div>
+          {/* Декор */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 blur-3xl rounded-full -mt-10 -mr-10 pointer-events-none" />
+        </motion.div>
       )}
 
-      <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md relative">
-        <div className="hidden sm:flex absolute top-6 right-6 items-center gap-2 flex-shrink-0">
-            <Button onClick={onInfoClick} variant="secondary" className="p-2 h-12 w-12 rounded-full">
-                <Info size={28} />
-            </Button>
-            {canEdit && (
-              <>
-                <Button onClick={onEdit} variant="secondary" className="p-2 h-12 w-12 rounded-full">
-                    <Edit size={28} />
-                </Button>
-                <Button onClick={onDelete} variant="danger" className="p-2 h-12 w-12 rounded-full">
-                    <Trash2 size={28} />
-                </Button>
-              </>
-            )}
-        </div>
-        
-        <div className="grid grid-cols-[auto,1fr] items-center gap-x-4 sm:gap-x-6">
-            <img
-                src={avatarSrc}
-                alt={`Аватар ${cat.name}`}
-                className="w-28 h-28 sm:w-32 sm:h-32 object-cover rounded-full border-4 border-brand-primary-light flex-shrink-0"
-            />
-            <div className="min-w-0 text-left">
-                <h2 className="text-3xl sm:text-4xl font-bold text-brand-text-primary truncate" title={cat.name}>
-                    {cat.name}
-                </h2>
-                <div className="mt-2 flex items-center flex-wrap gap-x-4 gap-y-1 text-sm sm:text-base text-brand-text-secondary">
-                  {ageString && (
-                      <div className="flex items-center gap-2">
-                          <Gift size={20} />
-                          <span className="font-medium">{ageString}</span>
-                      </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                      <Calendar size={20} />
-                      <span>
-                          {cat.arrivalDate ? format(new Date(cat.arrivalDate), 'd MMMM yy', { locale: ru }) : 'Дата не указана'}
-                      </span>
-                  </div>
+      {/* Основная карточка профиля */}
+      <div className="relative overflow-hidden rounded-3xl bg-white/80 backdrop-blur-xl border border-white shadow-lg p-6 sm:p-8">
+        {/* Фоновый градиент (очень мягкий) */}
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/5 via-transparent to-transparent pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row gap-6 sm:items-start">
+            {/* Аватарка */}
+            <div className="flex justify-center sm:block">
+                <div className="relative">
+                    <img
+                        src={avatarSrc}
+                        alt={`Аватар ${cat.name}`}
+                        className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-[2rem] shadow-xl border-4 border-white"
+                    />
+                    {/* Статус бейдж (опционально) */}
+                    <div className="absolute -bottom-2 -right-2 bg-white px-3 py-1 rounded-full shadow-md text-xs font-bold text-gray-600 border border-gray-100">
+                        {cat.status}
+                    </div>
                 </div>
+            </div>
+
+            {/* Информация */}
+            <div className="flex-1 text-center sm:text-left min-w-0">
+                <h1 className="text-4xl sm:text-5xl font-black text-gray-800 tracking-tight leading-tight truncate">
+                    {cat.name}
+                </h1>
+                
+                <div className="mt-4 flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                     {/* Возраст */}
+                     {ageString && (
+                        <div className="flex items-center gap-2 bg-white/60 px-3 py-1.5 rounded-xl border border-white shadow-sm text-sm font-semibold text-gray-700">
+                            <Gift size={16} className="text-brand-primary" />
+                            <span>{ageString}</span>
+                        </div>
+                     )}
+                     
+                     {/* Дата прибытия */}
+                     <div className="flex items-center gap-2 bg-white/60 px-3 py-1.5 rounded-xl border border-white shadow-sm text-sm font-semibold text-gray-700">
+                         <Calendar size={16} className="text-blue-500" />
+                         <span>
+                             {cat.arrivalDate ? `В приюте с ${format(new Date(cat.arrivalDate), 'd MMM yy', { locale: ru })}` : 'Дата не указана'}
+                         </span>
+                     </div>
+                </div>
+            </div>
+
+            {/* Кнопки действий (Десктоп) */}
+            <div className="hidden sm:flex flex-col gap-2 shrink-0">
+                <button 
+                    onClick={onInfoClick} 
+                    className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-500 hover:text-brand-primary hover:border-brand-primary hover:shadow-lg transition-all active:scale-95"
+                    title="Информация о создателе"
+                >
+                    <Info size={24} />
+                </button>
+                
+                {canEdit && (
+                  <>
+                    <button 
+                        onClick={onEdit} 
+                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-500 hover:text-blue-500 hover:border-blue-500 hover:shadow-lg transition-all active:scale-95"
+                        title="Редактировать"
+                    >
+                        <Edit size={24} />
+                    </button>
+                    <button 
+                        onClick={onDelete} 
+                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-500 hover:text-red-500 hover:border-red-500 hover:shadow-lg transition-all active:scale-95"
+                        title="Удалить"
+                    >
+                        <Trash2 size={24} />
+                    </button>
+                  </>
+                )}
             </div>
         </div>
 
-        <div className="sm:hidden grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-brand-border">
-            <Button onClick={onInfoClick} variant="secondary" className="flex-col h-auto p-2">
-                <Info size={20}/>
-                <span className="text-xs mt-1">Инфо</span>
-            </Button>
+        {/* Кнопки действий (Мобильные) */}
+        <div className="sm:hidden grid grid-cols-3 gap-3 mt-8 pt-6 border-t border-gray-100">
+            <button onClick={onInfoClick} className="flex flex-col items-center gap-1 group">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors">
+                    <Info size={20}/>
+                </div>
+                <span className="text-[10px] font-medium text-gray-500">Инфо</span>
+            </button>
             {canEdit && (
               <>
-                <Button onClick={onEdit} variant="secondary" className="flex-col h-auto p-2">
-                    <Edit size={20}/>
-                    <span className="text-xs mt-1">Изменить</span>
-                </Button>
-                <Button onClick={onDelete} variant="danger" className="flex-col h-auto p-2">
-                    <Trash2 size={20}/>
-                    <span className="text-xs mt-1">Удалить</span>
-                </Button>
+                <button onClick={onEdit} className="flex flex-col items-center gap-1 group">
+                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                        <Edit size={20}/>
+                    </div>
+                    <span className="text-[10px] font-medium text-gray-500">Правка</span>
+                </button>
+                <button onClick={onDelete} className="flex flex-col items-center gap-1 group">
+                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-red-50 group-hover:text-red-500 transition-colors">
+                        <Trash2 size={20}/>
+                    </div>
+                    <span className="text-[10px] font-medium text-gray-500">Удалить</span>
+                </button>
               </>
             )}
         </div>

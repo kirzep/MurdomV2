@@ -4,7 +4,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// ИЗМЕНЕНИЕ: Заменяем иконки на пути к вашим файлам
 const navLinks = [
   { href: '/dashboard', label: 'Архив', icon: '/assets/icons/footer/archive.png' },
   { href: '/dashboard/calendar', label: 'Календарь', icon: '/assets/icons/footer/calendar.png' },
@@ -16,8 +15,23 @@ export default function BottomNavBar() {
   const pathname = usePathname();
 
   return (
-    <footer className="fixed bottom-0 left-0 z-50 w-full h-16 bg-brand-surface/80 backdrop-blur-lg border-t border-brand-border/50">
-      <div className="grid h-full max-w-lg grid-cols-4 mx-auto font-medium">
+    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+      <nav className="
+        pointer-events-auto
+        flex items-center justify-between 
+        w-full max-w-md 
+        /* --- ИЗМЕНЕНИЯ ЗДЕСЬ --- */
+        /* Почти непрозрачный белый фон (было white/90) */
+        bg-white/95 
+        /* Блюр */
+        backdrop-blur-md 
+        /* Жирная белая граница внутри */
+        border border-white
+        /* КРУПНАЯ мягкая тень, создающая эффект парения */
+        shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)]
+        
+        rounded-2xl px-2 py-2
+      ">
         {navLinks.map(({ href, label, icon }) => {
           const isActive = (href === '/dashboard') 
             ? pathname === href 
@@ -27,25 +41,38 @@ export default function BottomNavBar() {
             <Link
               key={href}
               href={href}
-              className={`inline-flex flex-col items-center justify-center px-1 group transition-all duration-200 m-1 rounded-lg ${
-                isActive 
-                  ? 'text-brand-primary bg-brand-primary-light' 
-                  : 'text-brand-text-secondary hover:bg-brand-primary-light/50'
-              }`}
+              className={`
+                relative flex flex-col items-center justify-center 
+                w-full h-14 rounded-xl transition-all duration-300
+                ${isActive 
+                  ? 'text-brand-primary' 
+                  : 'text-gray-400 hover:bg-gray-100/50'
+                }
+              `}
             >
-              {/* ИЗМЕНЕНИЕ: Используем тег <img> вместо компонента иконки */}
+              {isActive && (
+                <span className="absolute inset-0 bg-brand-primary-light/30 rounded-xl -z-10 scale-90 transition-transform" />
+              )}
+              
               <img 
                 src={icon} 
-                alt={label} 
-                className={`w-6 h-6 mb-1 transition-all duration-300 ${isActive ? '' : 'grayscale opacity-70'}`}
+                alt={label}
+                className={`
+                    w-7 h-7 transition-all duration-300 drop-shadow-sm
+                    ${isActive 
+                        ? '-translate-y-0.5 scale-110' 
+                        : 'grayscale opacity-50'
+                    }
+                `} 
               />
-              <span className="text-xs font-semibold">
+              
+              <span className={`text-[10px] font-bold mt-0.5 transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0 hidden'}`}>
                 {label}
               </span>
             </Link>
           );
         })}
-      </div>
-    </footer>
+      </nav>
+    </div>
   );
 }

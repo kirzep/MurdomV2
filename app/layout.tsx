@@ -1,15 +1,20 @@
 // app/layout.tsx
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import NextAuthProvider from './components/NextAuthProvider'
-import PWAInstaller from './components/PWAInstaller'
-import ConnectionStatusBanner from './components/ConnectionStatusBanner'
-import AppShell from './components/AppShell'
+import type { Metadata, Viewport } from 'next';
+import { Nunito } from 'next/font/google'; // Используем Nunito вместо Inter
+import './globals.css';
+import NextAuthProvider from './components/NextAuthProvider';
+import PWAInstaller from './components/PWAInstaller';
+import ConnectionStatusBanner from './components/ConnectionStatusBanner';
+import AppShell from './components/AppShell';
 
-const inter = Inter({ subsets: ['latin'] })
+// Настраиваем шрифт
+const nunito = Nunito({ 
+  subsets: ['cyrillic', 'latin'],
+  weight: ['400', '600', '700', '800'],
+  variable: '--font-nunito', // Создаем переменную CSS
+});
 
-const appVersion = "2.2.0";
+const appVersion = "2.3.0";
 
 export const metadata: Metadata = {
   title: 'Архив Кошек',
@@ -41,11 +46,11 @@ export const metadata: Metadata = {
       },
     ],
   },
-}
+};
 
 export const viewport: Viewport = {
-  themeColor: '#5D001E',
-}
+  themeColor: '#FFFBF7', // Цвет фона лучше подходит под тему, чем темный бордовый
+};
 
 export default function RootLayout({
   children,
@@ -54,8 +59,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body>
-        {/* === ИЗМЕНЕНИЕ ЗДЕСЬ: Убраны классы "relative z-10" === */}
+      {/* Применяем класс шрифта к body */}
+      <body className={nunito.className}>
+        <div className="bg-noise" />
         <div className="content-wrapper">
             <ConnectionStatusBanner />
             <NextAuthProvider>
@@ -65,5 +71,5 @@ export default function RootLayout({
         </div>
       </body>
     </html>
-  )
+  );
 }

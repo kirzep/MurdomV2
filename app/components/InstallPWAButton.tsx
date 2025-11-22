@@ -2,10 +2,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { DownloadCloud } from 'lucide-react';
+import { Download, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Определяем тип для события установки, чтобы TypeScript не ругался
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
   readonly userChoice: Promise<{
@@ -21,23 +20,16 @@ export default function InstallPWAButton() {
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Предотвращаем стандартное поведение браузера
       e.preventDefault();
-      // Сохраняем событие, чтобы мы могли вызвать его позже
       setInstallPrompt(e as BeforeInstallPromptEvent);
-      // Показываем кнопку
       setIsVisible(true);
-      console.log("PWA install prompt is ready.");
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Слушатель для отслеживания, когда приложение было установлено
     window.addEventListener('appinstalled', () => {
-      // Скрываем кнопку после успешной установки
       setIsVisible(false);
       setInstallPrompt(null);
-      console.log('PWA was installed');
     });
 
     return () => {
@@ -46,39 +38,43 @@ export default function InstallPWAButton() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!installPrompt) {
-      return;
-    }
-    // Показываем пользователю нативное окно установки
+    if (!installPrompt) return;
     await installPrompt.prompt();
-    // Ждем выбора пользователя
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
-      console.log('User accepted the PWA installation');
-    } else {
-      console.log('User dismissed the PWA installation');
+      setIsVisible(false);
     }
-    // Скрываем кнопку после взаимодействия
-    setIsVisible(false);
     setInstallPrompt(null);
   };
 
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-        >
-          <button 
+        <motion.button
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             onClick={handleInstallClick}
-            className="w-full flex items-center gap-4 p-3 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors text-lg font-medium"
-          >
-            <DownloadCloud size={24} />
-            Установить приложение
-          </button>
-        </motion.div>
+            className="
+                flex items-center justify-between p-5 rounded-[2rem] border shadow-sm transition-all text-left w-full
+                bg-blue-50/80 border-blue-100 hover:bg-blue-100
+            "
+        >
+            <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-blue-100 text-blue-600">
+                    <Smartphone size={24} />
+                </div>
+                <div>
+                    <h3 className="font-bold text-blue-900">Установить приложение</h3>
+                    <p className="text-xs font-medium text-blue-700">Добавить на главный экран</p>
+                </div>
+            </div>
+            <div className="text-blue-400">
+                <Download size={20} />
+            </div>
+        </motion.button>
       )}
     </AnimatePresence>
   );

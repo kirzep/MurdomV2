@@ -4,7 +4,7 @@
 import { CalendarEvent } from "@/lib/calendarHelper";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Syringe, AlertTriangle, Clock } from "lucide-react";
 
 interface CalendarEventCardProps {
   event: CalendarEvent;
@@ -18,11 +18,25 @@ const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onConfirmC
     ? `${appUrl}${event.catAvatarUrl}`
     : `https://placehold.co/24x24/e2e8f0/64748b?text=${event.catName.charAt(0)}`;
 
-  let colorClasses = "bg-indigo-50 text-indigo-700 hover:bg-indigo-100";
+  // Определяем стили в зависимости от статуса события
+  let containerClasses = "bg-gray-50 border-gray-200 text-gray-600 hover:bg-white hover:border-gray-300 hover:shadow-sm";
+  let icon = <Clock size={14} className="text-gray-400" />;
+  let statusText = "";
+
   if (event.isProjected) {
-    if (event.isOverdue) colorClasses = "bg-red-100 text-red-800 hover:bg-red-200";
-    else if (event.isUpcoming) colorClasses = "bg-amber-100 text-amber-800 hover:bg-amber-200";
-    else colorClasses = "bg-gray-100 text-gray-600 hover:bg-gray-200";
+    if (event.isOverdue) {
+        containerClasses = "bg-red-50 border-red-200 text-red-800 hover:bg-white hover:border-red-300 hover:shadow-red-100 hover:shadow-md";
+        icon = <AlertTriangle size={14} className="text-red-500" />;
+        statusText = "Просрочено";
+    } else if (event.isUpcoming) {
+        containerClasses = "bg-amber-50 border-amber-200 text-amber-800 hover:bg-white hover:border-amber-300 hover:shadow-amber-100 hover:shadow-md";
+        icon = <Syringe size={14} className="text-amber-500" />;
+        statusText = "Скоро";
+    }
+  } else {
+      // Для уже выполненных событий (если они отображаются)
+      containerClasses = "bg-emerald-50 border-emerald-200 text-emerald-800 opacity-70";
+      icon = <Check size={14} className="text-emerald-500" />;
   }
 
   return (
@@ -31,27 +45,47 @@ const CalendarEventCard: React.FC<CalendarEventCardProps> = ({ event, onConfirmC
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
-      className={`flex items-center gap-2 rounded-md p-1.5 text-xs font-medium transition-colors ${colorClasses}`}
+      className={`
+        group relative flex items-center justify-between
+        p-2 rounded-xl border transition-all duration-200
+        ${containerClasses}
+      `}
     >
-      <Link href={`/dashboard/cat/${event.catId}`} className="flex items-center gap-2 flex-grow min-w-0">
-        <img
-          src={avatarSrc}
-          alt={event.catName}
-          className="h-5 w-5 flex-shrink-0 rounded-full border border-white/50"
-        />
-        <span className="truncate">{event.catName}</span>
-        {event.isProjected && (
-          <span className="ml-auto font-bold flex-shrink-0" title="Прогнозируемое событие">!</span>
-        )}
+      <Link href={`/dashboard/cat/${event.catId}`} className="flex items-center gap-3 flex-grow min-w-0 pr-2">
+        <div className="relative shrink-0">
+            <img
+            src={avatarSrc}
+            alt={event.catName}
+            className="h-8 w-8 rounded-lg object-cover border border-black/5 shadow-sm"
+            />
+            {/* Маленький индикатор статуса на аватарке */}
+            {event.isProjected && (event.isOverdue || event.isUpcoming) && (
+                <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${event.isOverdue ? 'bg-red-500' : 'bg-amber-500'}`} />
+            )}
+        </div>
+        
+        <div className="min-w-0 flex flex-col">
+            <span className="text-sm font-bold truncate leading-tight">{event.catName}</span>
+            <div className="flex items-center gap-1 text-[10px] font-medium opacity-80">
+                {icon}
+                <span className="truncate">{event.stageText}</span>
+            </div>
+        </div>
       </Link>
       
       {canEdit && event.canConfirmVaccination && (
         <button
           onClick={() => onConfirmClick(event)}
-          className="flex-shrink-0 w-5 h-5 bg-green-200 text-green-800 rounded-full flex items-center justify-center hover:bg-green-300 transition-colors"
+          className={`
+            flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all
+            ${event.isOverdue 
+                ? 'bg-red-100 text-red-600 hover:bg-red-500 hover:text-white shadow-sm' 
+                : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white shadow-sm'
+            }
+          `}
           title="Отметить как выполненную"
         >
-          <Check size={12} />
+          <Check size={18} strokeWidth={2.5} />
         </button>
       )}
     </motion.div>

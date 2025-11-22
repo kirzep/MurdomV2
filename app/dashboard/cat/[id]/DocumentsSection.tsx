@@ -2,11 +2,10 @@
 "use client";
 
 import { Cat, Document as DocType } from "@/types";
-import Button from "@/app/components/ui/Button";
-import { Plus, ScanLine, Trash2, Download, X } from 'lucide-react';
+import { Plus, ScanLine, Trash2, Download, X, FolderOpen, FileQuestion } from 'lucide-react';
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import DocumentItem from "./DocumentItem"; // ИЗМЕНЕНИЕ: Импортируем новый компонент
+import DocumentItem from "./DocumentItem";
 
 interface DocumentsSectionProps {
     cat: Cat;
@@ -80,25 +79,40 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
     };
 
     return (
-        <div className="bg-brand-surface/80 backdrop-blur-lg p-4 sm:p-6 rounded-xl shadow-md">
-            <div className="flex justify-between items-center mb-4 gap-2">
-                <h3 className="text-xl font-semibold text-brand-text-primary">Документы</h3>
+        <div className="bg-white/80 backdrop-blur-xl border border-white shadow-lg p-6 sm:p-8 rounded-3xl h-full flex flex-col">
+            <div className="flex justify-between items-center mb-6 gap-2">
+                <div className="flex items-center gap-3 text-gray-800">
+                    <div className="p-2 bg-blue-50 text-blue-500 rounded-xl">
+                        <FolderOpen size={24} />
+                    </div>
+                    <h3 className="text-xl font-bold">Документы</h3>
+                </div>
+                
                 {canEdit && !isSelectionMode && (
                   <div className="flex items-center gap-2">
-                    <Button onClick={onScanClick} variant="secondary" className="p-2 sm:px-4 sm:w-auto w-11 h-11">
-                        <ScanLine size={20} className="sm:mr-2"/>
-                        <span className="hidden sm:inline">Сканировать</span>
-                    </Button>
-                    <Button onClick={onAddClick} className="p-2 sm:px-4 sm:w-auto w-11 h-11">
-                        <Plus size={20} className="sm:mr-2"/>
-                        <span className="hidden sm:inline">Загрузить</span>
-                    </Button>
+                    <button 
+                        onClick={onScanClick} 
+                        className="w-10 h-10 sm:w-auto sm:h-10 sm:px-4 flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95 shadow-sm"
+                        title="Сканировать"
+                    >
+                        <ScanLine size={18} />
+                        <span className="hidden sm:inline text-sm font-semibold">Скан</span>
+                    </button>
+                    
+                    <button 
+                        onClick={onAddClick} 
+                        className="w-10 h-10 sm:w-auto sm:h-10 sm:px-4 flex items-center justify-center gap-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-dark shadow-md shadow-brand-primary/20 transition-all active:scale-95"
+                        title="Загрузить файл"
+                    >
+                        <Plus size={20} />
+                        <span className="hidden sm:inline text-sm font-bold">Загрузить</span>
+                    </button>
                   </div>
                 )}
             </div>
+
             {documents.length > 0 ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-                    {/* ИЗМЕНЕНИЕ: Используем новый компонент DocumentItem внутри цикла */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
                     {documents.map(doc => (
                         <DocumentItem
                             key={doc.id}
@@ -112,31 +126,49 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
                     ))}
                 </div>
             ) : (
-                <p className="text-brand-text-secondary italic text-center py-4">Документов пока нет.</p>
+                <div className="flex-1 flex flex-col items-center justify-center py-12 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3">
+                        <FileQuestion size={32} className="opacity-50" />
+                    </div>
+                    <p className="font-medium">Папка пуста</p>
+                    <p className="text-xs opacity-70 mt-1">Загрузите сканы или фото</p>
+                </div>
             )}
 
             <AnimatePresence>
                 {isSelectionMode && (
                     <motion.div
-                        initial={{ y: "120%" }}
-                        animate={{ y: 0 }}
-                        exit={{ y: "120%" }}
-                        className="fixed bottom-4 inset-x-4 max-w-md mx-auto z-50"
+                        initial={{ y: "120%", opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: "120%", opacity: 0 }}
+                        className="fixed bottom-6 inset-x-4 max-w-lg mx-auto z-[60]"
                     >
-                        <div className="bg-brand-surface text-brand-text-primary rounded-xl p-3 shadow-2xl flex items-center justify-between border border-brand-border">
-                            <Button onClick={handleCancelSelection} variant="secondary" className="!p-2 !h-10 !w-10 !rounded-full">
-                                <X size={24}/>
-                            </Button>
-                            <span className="font-semibold text-sm">Выбрано: {selectedDocs.length}</span>
+                        <div className="bg-white/90 backdrop-blur-xl text-gray-800 rounded-2xl p-2 pl-4 shadow-2xl flex items-center justify-between border border-white/50 ring-1 ring-black/5">
+                            <div className="flex items-center gap-3">
+                                <button 
+                                    onClick={handleCancelSelection} 
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <X size={20}/>
+                                </button>
+                                <span className="font-bold text-sm">Выбрано: {selectedDocs.length}</span>
+                            </div>
+                            
                             <div className="flex gap-2">
-                                <Button onClick={handleDownloadSelected} variant="secondary" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
-                                    <Download size={24} className="sm:mr-2"/>
+                                <button 
+                                    onClick={handleDownloadSelected} 
+                                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors"
+                                >
+                                    <Download size={18} />
                                     <span className="hidden sm:inline">Скачать</span>
-                                </Button>
-                                <Button onClick={handleDeleteSelected} variant="danger" className="!rounded-full !h-10 !w-10 sm:!w-auto sm:!px-4">
-                                    <Trash2 size={24} className="sm:mr-2"/>
+                                </button>
+                                <button 
+                                    onClick={handleDeleteSelected} 
+                                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors"
+                                >
+                                    <Trash2 size={18} />
                                     <span className="hidden sm:inline">Удалить</span>
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </motion.div>

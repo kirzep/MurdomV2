@@ -6,10 +6,12 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Spinner from '@/app/components/ui/Spinner';
 import { Role } from '@/types';
-import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff, LogOut, Zap, Send } from 'lucide-react';
+import { Shield, Edit, Save, Camera, ArrowLeft, BadgeCheck, Bell, BellOff, LogOut, Zap, Send, User as UserIcon, Mail } from 'lucide-react';
 import Link from 'next/link';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { motion } from 'framer-motion';
+import InstallPWAButton from '@/app/components/InstallPWAButton'; // Импортируем кнопку
 
 const roleNames = {
     VOLUNTEER: 'Волонтёр',
@@ -45,7 +47,7 @@ export default function ProfilePage() {
     const [isSubscriptionLoading, setIsSubscriptionLoading] = useState(true);
     const [isSubscriptionEnabled, setIsSubscriptionEnabled] = useState(true);
 
-    // 👇 НОВЫЕ СОСТОЯНИЯ ДЛЯ ПАНЕЛИ РАССЫЛКИ 👇
+    // Состояния для панели рассылки
     const [broadcastTitle, setBroadcastTitle] = useState('');
     const [broadcastMessage, setBroadcastMessage] = useState('');
     const [isBroadcasting, setIsBroadcasting] = useState(false);
@@ -106,7 +108,6 @@ export default function ProfilePage() {
         }
     }, [session, status, appUrl, getServiceWorkerRegistration]);
     
-    // 👇 НОВАЯ ФУНКЦИЯ ДЛЯ ОТПРАВКИ РАССЫЛКИ 👇
     const handleBroadcast = async (e: FormEvent) => {
         e.preventDefault();
         if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
@@ -141,7 +142,6 @@ export default function ProfilePage() {
             setIsBroadcasting(false);
         }
     };
-
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -248,126 +248,196 @@ export default function ProfilePage() {
         return null;
     }
 
-    const currentAvatar = avatarPreview ?? `https://placehold.co/128x128/e2e8f0/64748b?text=${(session?.user?.name ?? '?').charAt(0)}`;
+    const currentAvatar = avatarPreview ?? `https://placehold.co/256x256/e2e8f0/64748b?text=${(session?.user?.name ?? '?').charAt(0)}`;
 
     return (
-        <div className="min-h-screen p-4 sm:p-8">
-            <div className="max-w-2xl mx-auto space-y-8">
-                <div className="mb-0">
-                     <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors bg-brand-secondary text-brand-text-primary hover:bg-brand-border focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary">
+        <div className="min-h-screen p-4 sm:p-8 pb-28">
+            <div className="max-w-3xl mx-auto space-y-6">
+                {/* Кнопка назад */}
+                <div className="flex items-center">
+                     <Link href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all bg-white/80 backdrop-blur-md border border-white text-brand-text-primary hover:bg-white hover:shadow-md shadow-sm">
                         <ArrowLeft size={18} />
-                        Вернуться в архив
+                        <span className="hidden sm:inline">Вернуться в архив</span>
                     </Link>
                 </div>
 
-                <form onSubmit={handleProfileUpdate} className="bg-brand-surface/80 backdrop-blur-lg p-8 rounded-2xl shadow-lg">
-                    <div className="flex flex-col items-center text-center">
-                        <div className="relative w-32 h-32 mb-4">
-                            <img 
-                                src={currentAvatar}
-                                alt="Аватар профиля"
-                                className="w-32 h-32 rounded-full object-cover border-4 border-brand-primary-light"
-                            />
-                            {isEditing && (
-                                <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 w-10 h-10 bg-brand-primary text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-opacity-90 transition-all">
-                                    <Camera size={22} />
-                                    <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                </label>
-                            )}
-                        </div>
-
-                        <div className='flex items-center gap-2'>
-                            {isEditing ? (
-                                <Input 
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    className="text-4xl font-bold text-center bg-transparent border-0 ring-0 focus:ring-0 p-0"
-                                />
-                            ) : (
-                                <h1 className="text-4xl font-bold text-brand-text-primary">{session?.user.name}</h1>
-                            )}
-                            {session?.user.role === Role.DEVELOPER && (
-                                <BadgeCheck size={32} className="text-blue-500" />
-                            )}
-                        </div>
+                {/* Основная карточка профиля */}
+                <form onSubmit={handleProfileUpdate}>
+                    <div className="relative overflow-hidden bg-white/80 backdrop-blur-xl border border-white shadow-xl rounded-[2.5rem] p-8 sm:p-10">
                         
-                        <p className="text-lg text-brand-text-secondary mt-1">{session?.user.email}</p>
+                        {/* Декоративный фон */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-brand-primary/5 to-transparent pointer-events-none h-48" />
 
-                        <div className="mt-6 bg-brand-background px-4 py-2 rounded-full flex items-center gap-2 text-brand-text-primary">
-                            <Shield size={20} className="text-brand-primary" />
-                            <span className="font-semibold">Роль:</span>
-                            <span>{session?.user.role ? roleNames[session.user.role] : 'Не определена'}</span>
+                        <div className="relative z-10 flex flex-col items-center text-center">
+                            {/* Аватар */}
+                            <div className="relative group mb-6">
+                                <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-white shadow-xl">
+                                    <img 
+                                        src={currentAvatar}
+                                        alt="Аватар профиля"
+                                        className="w-full h-full rounded-full object-cover border-4 border-brand-primary/10"
+                                    />
+                                </div>
+                                {isEditing && (
+                                    <label htmlFor="avatar-upload" className="absolute bottom-1 right-1 w-10 h-10 bg-brand-primary text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-brand-primary-hover shadow-lg transition-transform hover:scale-110 border-2 border-white">
+                                        <Camera size={20} />
+                                        <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                                    </label>
+                                )}
+                            </div>
+
+                            {/* Имя и Роль */}
+                            <div className="flex flex-col items-center gap-2 mb-6 w-full">
+                                {isEditing ? (
+                                    <input 
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="text-3xl sm:text-4xl font-black text-center bg-transparent border-b-2 border-brand-primary/30 focus:border-brand-primary outline-none px-2 py-1 text-gray-800 w-full max-w-md"
+                                        placeholder="Ваше имя"
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center gap-2">
+                                        <h1 className="text-3xl sm:text-4xl font-black text-gray-800">{session?.user.name}</h1>
+                                        {session?.user.role === Role.DEVELOPER && (
+                                            <BadgeCheck size={28} className="text-blue-500" />
+                                        )}
+                                    </div>
+                                )}
+                                
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                    <Shield size={14} className="text-brand-primary" />
+                                    <span>{session?.user.role ? roleNames[session.user.role] : 'Не определена'}</span>
+                                </div>
+                            </div>
+                            
+                            {/* Почта */}
+                            <div className="flex items-center gap-2 text-gray-500 bg-gray-50/50 px-4 py-2 rounded-xl border border-gray-100 mb-8">
+                                <Mail size={16} />
+                                <span className="text-sm font-medium">{session?.user.email}</span>
+                            </div>
+
+                            {/* Кнопки действий */}
+                            <div className="flex flex-wrap justify-center gap-3 w-full">
+                                {isEditing ? (
+                                    <>
+                                        <Button type="button" onClick={handleCancelEdit} variant="secondary" className="rounded-xl h-12 px-6">
+                                            Отмена
+                                        </Button>
+                                        <Button type="submit" isLoading={isLoading} className="rounded-xl h-12 px-8 shadow-lg shadow-brand-primary/20">
+                                            <Save size={20} className="mr-2"/> Сохранить
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <Button type="button" onClick={() => setIsEditing(true)} className="rounded-xl h-12 px-8 shadow-lg shadow-brand-primary/20">
+                                        <Edit size={20} className="mr-2"/> Редактировать
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="mt-8 flex flex-wrap justify-center gap-4">
-                        {isEditing ? (
-                            <>
-                                <Button type="button" onClick={handleCancelEdit} variant="secondary">
-                                    Отмена
-                                </Button>
-                                <Button type="submit" isLoading={isLoading}>
-                                    <Save size={20} className="mr-2"/> Сохранить
-                                </Button>
-                            </>
-                        ) : (
-                            <Button type="button" onClick={() => setIsEditing(true)}>
-                                <Edit size={20} className="mr-2"/> Редактировать
-                            </Button>
-                        )}
-                         <Button 
-                            type="button" 
-                            onClick={handleSubscriptionToggle} 
-                            variant="secondary"
-                            isLoading={isSubscriptionLoading}
-                            disabled={!isSubscriptionEnabled || isSubscriptionLoading}
-                            title={!isSubscriptionEnabled ? "Функция уведомлений недоступна" : ""}
-                            >
-                            {isSubscribed ? <BellOff size={20} className="mr-2"/> : <Bell size={20} className="mr-2"/>}
-                            {isSubscribed ? 'Уведомления Вкл.' : 'Вкл. уведомления'}
-                        </Button>
-                        <Button 
-                            type="button" 
-                            onClick={handleSignOut} 
-                            variant="danger"
-                        >
-                            <LogOut size={20} className="mr-2"/>
-                            Выйти
-                        </Button>
                     </div>
                 </form>
 
-                {/* 👇 НОВАЯ ПАНЕЛЬ ДЛЯ РАЗРАБОТЧИКА 👇 */}
-                {session?.user.role === Role.DEVELOPER && (
-                    <div className="bg-red-900/10 border border-red-900/20 p-6 rounded-2xl shadow-lg">
-                        <h3 className="text-xl font-bold text-red-800 mb-4">Панель разработчика</h3>
-                        <form onSubmit={handleBroadcast} className="space-y-4">
+                {/* Дополнительные настройки (Уведомления, PWA, Выход) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleSubscriptionToggle}
+                        disabled={!isSubscriptionEnabled || isSubscriptionLoading}
+                        className={`
+                            flex items-center justify-between p-5 rounded-[2rem] border shadow-sm transition-all text-left
+                            ${isSubscribed 
+                                ? 'bg-emerald-50/80 border-emerald-100 hover:bg-emerald-100' 
+                                : 'bg-white/80 border-white hover:bg-white'}
+                        `}
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-2xl ${isSubscribed ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-500'}`}>
+                                {isSubscribed ? <Bell size={24} /> : <BellOff size={24} />}
+                            </div>
                             <div>
-                                <label htmlFor="broadcast-title" className="block text-sm font-medium text-brand-text-secondary mb-1">Заголовок рассылки</label>
-                                <Input 
-                                    id="broadcast-title"
+                                <h3 className={`font-bold ${isSubscribed ? 'text-emerald-900' : 'text-gray-800'}`}>
+                                    Уведомления
+                                </h3>
+                                <p className={`text-xs font-medium ${isSubscribed ? 'text-emerald-700' : 'text-gray-500'}`}>
+                                    {isSubscribed ? 'Включены' : 'Отключены'}
+                                </p>
+                            </div>
+                        </div>
+                        {isSubscriptionLoading && <Spinner />}
+                    </motion.button>
+
+                    {/* Кнопка установки приложения */}
+                    <InstallPWAButton />
+
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleSignOut}
+                        className="flex items-center justify-between p-5 rounded-[2rem] border border-red-100 bg-red-50/50 hover:bg-red-50 shadow-sm transition-all text-left"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-2xl bg-red-100 text-red-500">
+                                <LogOut size={24} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-red-900">Выйти</h3>
+                                <p className="text-xs font-medium text-red-700">Завершить сеанс</p>
+                            </div>
+                        </div>
+                    </motion.button>
+                </div>
+
+                {/* Панель разработчика (Только для DEV) */}
+                {session?.user.role === Role.DEVELOPER && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-gray-900 text-gray-200 p-6 rounded-[2rem] shadow-2xl border border-gray-700 overflow-hidden relative"
+                    >
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <Zap size={100} />
+                        </div>
+                        
+                        <div className="flex items-center gap-3 mb-6 relative z-10">
+                            <div className="p-2 bg-indigo-500 rounded-lg text-white">
+                                <Zap size={20} />
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Консоль Создателя</h3>
+                        </div>
+
+                        <form onSubmit={handleBroadcast} className="space-y-4 relative z-10">
+                            <div>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Заголовок</label>
+                                <input 
                                     value={broadcastTitle}
                                     onChange={(e) => setBroadcastTitle(e.target.value)}
-                                    placeholder="🎉 Вышло обновление!"
+                                    placeholder="Важное объявление"
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                                     required
                                 />
                             </div>
                              <div>
-                                <label htmlFor="broadcast-message" className="block text-sm font-medium text-brand-text-secondary mb-1">Сообщение рассылки</label>
+                                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Сообщение</label>
                                 <textarea
-                                    id="broadcast-message"
                                     value={broadcastMessage}
                                     onChange={(e) => setBroadcastMessage(e.target.value)}
-                                    placeholder="Опишите, что нового появилось в приложении..."
-                                    className="w-full h-24 p-3 bg-brand-background border-brand-border border rounded-lg resize-y focus:ring-2 focus:ring-brand-primary outline-none transition-shadow"
+                                    placeholder="Текст для всех пользователей..."
+                                    rows={3}
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
                                     required
                                 />
                             </div>
-                            <Button type="submit" isLoading={isBroadcasting} variant="danger">
-                                <Send size={20} className="mr-2"/>Отправить всем
-                            </Button>
+                            <button 
+                                type="submit" 
+                                disabled={isBroadcasting}
+                                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isBroadcasting ? <Spinner /> : <Send size={18} />}
+                                <span>Отправить всем</span>
+                            </button>
                         </form>
-                    </div>
+                    </motion.div>
                 )}
             </div>
         </div>
