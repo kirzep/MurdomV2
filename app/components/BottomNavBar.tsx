@@ -15,7 +15,12 @@ export default function BottomNavBar() {
   const pathname = usePathname();
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div className="
+      fixed left-0 right-0 z-50 flex justify-center px-4 pointer-events-none
+      /* --- ИЗМЕНЕНИЕ: Учитываем Safe Area снизу --- */
+      /* Базовый отступ 1.5rem (bottom-6) + системный отступ */
+      bottom-[calc(1.5rem+env(safe-area-inset-bottom))]
+    ">
       <nav className="
         pointer-events-auto
         flex items-center justify-between 

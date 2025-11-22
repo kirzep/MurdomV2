@@ -6,16 +6,25 @@
   /* --- ИЗМЕНЕНИЕ: Добавляем плавный скролл --- */
   html {
     scroll-behavior: smooth;
+    /* Важно для iOS, чтобы не было белого "отскока" при скролле за пределы */
+    background-color: #FFFBF7; 
   }
 
   body {
-  /* Заменяем простой цвет на сложный градиент */
-  /* Это создаст мягкий перелив от теплого бежевого к холодному серому */
-  background: radial-gradient(circle at top left, #fdfbf7 0%, #f3f4f6 100%);
-  min-height: 100vh;
-  color: rgb(var(--foreground-rgb));
-  /* Убедимся, что фон фиксирован */
-  background-attachment: fixed; 
+    /* Заменяем простой цвет на сложный градиент */
+    /* Это создаст мягкий перелив от теплого бежевого к холодному серому */
+    background: radial-gradient(circle at top left, #fdfbf7 0%, #f3f4f6 100%);
+    
+    /* ИСПРАВЛЕНО: min-height: 100dvh лучше работает на мобильных */
+    min-height: 100dvh; 
+    
+    color: rgb(var(--foreground-rgb));
+    /* Убедимся, что фон фиксирован */
+    background-attachment: fixed; 
+    
+    /* ИСПРАВЛЕНО: Добавляем отступ снизу для Safe Area (полоски жестов) */
+    /* Чтобы контент не обрезался на iPhone X и новее */
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
@@ -90,12 +99,4 @@
   
   /* Ставим небольшую непрозрачность, чтобы текстура была лишь легким намеком */
   opacity: 0.15; /* Попробуй значения от 0.1 до 0.25, если будет слишком тускло или ярко */
-}
-
-body {
-  /* Оставляем наш красивый градиент */
-  background: radial-gradient(circle at top left, #fdfbf7 0%, #f3f4f6 100%);
-  min-height: 100vh;
-  color: rgb(var(--foreground-rgb));
-  background-attachment: fixed;
 }

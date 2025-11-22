@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   manifest: `/manifest.json?v=${appVersion}`,
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent', // ИСПРАВЛЕНО: делает статус бар прозрачным поверх контента
     title: 'Архив Кошек',
   },
   icons: {
@@ -48,8 +48,14 @@ export const metadata: Metadata = {
   },
 };
 
+// ИСПРАВЛЕНО: Добавлен viewportFit: 'cover' и userScalable: false
 export const viewport: Viewport = {
-  themeColor: '#FFFBF7', // Цвет фона лучше подходит под тему, чем темный бордовый
+  themeColor: '#FFFBF7', 
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Запрещаем зум щипком (приложение должно ощущаться как нативное)
+  viewportFit: 'cover', // <--- ГЛАВНОЕ ИСПРАВЛЕНИЕ: Растягивает на весь экран, убирая белые полосы
 };
 
 export default function RootLayout({
