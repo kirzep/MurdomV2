@@ -56,9 +56,12 @@ const useLongPress = (
         clearTimeout(timeout.current);
       }
       
-      // Если длинное нажатие НЕ сработало и мы должны кликнуть — кликаем
-      // !longPressTriggered - гарантирует, что клик не сработает после вибрации
-      if (shouldTriggerClick && !longPressTriggered && onClick) {
+      // ПРОВЕРКА: Если startCoord === null, значит мы двигали пальцем (скроллили)
+      // и move() уже сбросил координаты. В таком случае клик не нужен.
+      const wasScrolling = startCoord.current === null;
+
+      // Если длинное нажатие НЕ сработало, мы не скроллили и должны кликнуть — кликаем
+      if (shouldTriggerClick && !longPressTriggered && !wasScrolling && onClick) {
         onClick(event);
       }
       
@@ -69,7 +72,7 @@ const useLongPress = (
         target.current.removeEventListener("touchend", preventDefault);
       }
     },
-    [onClick, longPressTriggered, isPreventDefault] // <--- ИСПРАВЛЕНО: убрал shouldTriggerClick
+    [onClick, longPressTriggered, isPreventDefault]
   );
 
   // Логика отмены при скролле
@@ -92,7 +95,7 @@ const useLongPress = (
       // Если сдвиг больше 10px — это скролл, отменяем LongPress
       if (diffX > 10 || diffY > 10) {
           if (timeout.current) clearTimeout(timeout.current);
-          startCoord.current = null;
+          startCoord.current = null; // Сбрасываем координаты, помечая как "скролл"
       }
   }, []);
 
