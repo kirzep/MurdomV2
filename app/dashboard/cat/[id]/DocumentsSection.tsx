@@ -80,7 +80,8 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
 
     return (
         <div className="bg-white/80 backdrop-blur-xl border border-white shadow-lg p-6 sm:p-8 rounded-3xl h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6 gap-2">
+            {/* Добавил flex-wrap для безопасности, чтобы контент не вылезал */}
+            <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
                 <div className="flex items-center gap-3 text-gray-800">
                     <div className="p-2 bg-blue-50 text-blue-500 rounded-xl">
                         <FolderOpen size={24} />
@@ -96,7 +97,8 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
                         title="Сканировать"
                     >
                         <ScanLine size={18} />
-                        <span className="hidden sm:inline text-sm font-semibold">Скан</span>
+                        {/* Умное скрытие текста: прячем на lg (ноутбук), показываем на xl (десктоп) */}
+                        <span className="hidden sm:inline lg:hidden xl:inline text-sm font-semibold">Скан</span>
                     </button>
                     
                     <button 
@@ -105,7 +107,8 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ cat, canEdit, onAdd
                         title="Загрузить файл"
                     >
                         <Plus size={20} />
-                        <span className="hidden sm:inline text-sm font-bold">Загрузить</span>
+                        {/* Умное скрытие текста: прячем на lg (ноутбук), показываем на xl (десктоп) */}
+                        <span className="hidden sm:inline lg:hidden xl:inline text-sm font-bold">Загрузить</span>
                     </button>
                   </div>
                 )}

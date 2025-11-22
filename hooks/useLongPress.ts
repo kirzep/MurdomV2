@@ -1,103 +1,115 @@
 // hooks/useLongPress.ts
-"use client";
+import { useCallback, useRef, useState } from "react";
 
-import { useCallback, useRef, MouseEvent, TouchEvent } from 'react';
-
-// Определяем пороговое значение для сдвига. Если палец сдвинулся больше,
-// чем на это значение, мы считаем это прокруткой, а не кликом.
-const MOVE_THRESHOLD = 10; // 10 пикселей
+interface LongPressOptions {
+  isPreventDefault?: boolean;
+  delay?: number;
+}
 
 const useLongPress = (
-  onLongPress: (event: MouseEvent | TouchEvent) => void,
-  onClick: () => void,
-  { delay = 300 } = {}
+  onLongPress: (e: any) => void,
+  onClick: (e: any) => void,
+  { isPreventDefault = true, delay = 500 }: LongPressOptions = {}
 ) => {
+  const [longPressTriggered, setLongPressTriggered] = useState(false);
   const timeout = useRef<NodeJS.Timeout>();
-  const longPressTriggered = useRef(false);
-  // Сохраняем начальные координаты касания
-  const startPos = useRef({ x: 0, y: 0 });
+  const target = useRef<EventTarget>();
+  // Храним координаты начала нажатия
+  const startCoord = useRef<{ x: number; y: number } | null>(null);
 
   const start = useCallback(
-    (event: MouseEvent | TouchEvent) => {
-      // Игнорируем правые клики мыши
-      if ('button' in event && event.button !== 0) {
-        return;
-      }
-
-      longPressTriggered.current = false;
-
-      // Записываем начальные координаты
-      if ('touches' in event) {
-        startPos.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+    (event: any) => {
+      // Для тача сохраняем координаты
+      if (event.touches && event.touches.length > 0) {
+        startCoord.current = { 
+            x: event.touches[0].clientX, 
+            y: event.touches[0].clientY 
+        };
       } else {
-        startPos.current = { x: event.clientX, y: event.clientY };
+        // Для мыши
+        startCoord.current = { x: event.clientX, y: event.clientY };
       }
 
+      if (isPreventDefault && event.target) {
+        event.target.addEventListener("touchend", preventDefault, {
+          passive: false,
+        });
+        target.current = event.target;
+      }
+      
       timeout.current = setTimeout(() => {
+        // --- HAPTIC FEEDBACK (Вибрация) ---
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(50); // 50мс короткий импульс
+        }
+        
         onLongPress(event);
-        longPressTriggered.current = true;
+        setLongPressTriggered(true);
       }, delay);
     },
-    [onLongPress, delay]
+    [onLongPress, delay, isPreventDefault]
   );
 
   const clear = useCallback(
-    (event: MouseEvent | TouchEvent) => {
-      // Если таймер все еще существует, значит, движение было минимальным
+    (event: any, shouldTriggerClick = true) => {
       if (timeout.current) {
         clearTimeout(timeout.current);
-        // И если долгое нажатие не сработало, то это клик
-        if (longPressTriggered.current === false) {
-          onClick();
-        }
       }
+      
+      // Если длинное нажатие НЕ сработало и мы должны кликнуть — кликаем
+      // !longPressTriggered - гарантирует, что клик не сработает после вибрации
+      if (shouldTriggerClick && !longPressTriggered && onClick) {
+        onClick(event);
+      }
+      
+      setLongPressTriggered(false);
+      startCoord.current = null; // Сбрасываем координаты
 
-      // Предотвращаем "призрачные клики" и контекстное меню
-      if (event.cancelable) {
-        event.preventDefault();
+      if (isPreventDefault && target.current) {
+        target.current.removeEventListener("touchend", preventDefault);
       }
     },
-    [onClick]
+    [onClick, longPressTriggered, isPreventDefault] // <--- ИСПРАВЛЕНО: убрал shouldTriggerClick
   );
 
-  // Новая функция для отмены при движении
-  const cancelOnMove = useCallback((event: MouseEvent | TouchEvent) => {
-    if (!timeout.current) return;
+  // Логика отмены при скролле
+  const move = useCallback((event: any) => {
+      if (!startCoord.current) return;
 
-    let currentX = 0;
-    let currentY = 0;
+      let x, y;
+      if (event.touches && event.touches.length > 0) {
+          x = event.touches[0].clientX;
+          y = event.touches[0].clientY;
+      } else {
+          x = event.clientX;
+          y = event.clientY;
+      }
 
-    if ('touches' in event) {
-      currentX = event.touches[0].clientX;
-      currentY = event.touches[0].clientY;
-    } else {
-      currentX = event.clientX;
-      currentY = event.clientY;
-    }
+      // Считаем дельту (расстояние)
+      const diffX = Math.abs(x - startCoord.current.x);
+      const diffY = Math.abs(y - startCoord.current.y);
 
-    const deltaX = Math.abs(startPos.current.x - currentX);
-    const deltaY = Math.abs(startPos.current.y - currentY);
-
-    // Если сдвиг превышает порог, отменяем таймер.
-    // Это предотвратит вызов onClick при отпускании пальца.
-    if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
-      clearTimeout(timeout.current);
-      timeout.current = undefined; // Очищаем ref, чтобы clear() не сработал
-    }
+      // Если сдвиг больше 10px — это скролл, отменяем LongPress
+      if (diffX > 10 || diffY > 10) {
+          if (timeout.current) clearTimeout(timeout.current);
+          startCoord.current = null;
+      }
   }, []);
 
-
   return {
-    onMouseDown: start,
-    onTouchStart: start,
-    onMouseUp: clear,
-    onTouchEnd: clear,
-    onMouseMove: cancelOnMove,    // <-- ДОБАВЛЕНО
-    onTouchMove: cancelOnMove,    // <-- ДОБАВЛЕНО
-    onContextMenu: (e: MouseEvent) => {
-      e.preventDefault();
-    },
+    onMouseDown: (e: any) => start(e),
+    onTouchStart: (e: any) => start(e),
+    onMouseMove: (e: any) => move(e),
+    onTouchMove: (e: any) => move(e),
+    onMouseUp: (e: any) => clear(e),
+    onMouseLeave: (e: any) => clear(e, false),
+    onTouchEnd: (e: any) => clear(e),
   };
+};
+
+const preventDefault = (e: Event) => {
+  if (!("touches" in e)) return;
+  // e.preventDefault(); 
 };
 
 export default useLongPress;

@@ -1,158 +1,116 @@
 // app/dashboard/cat/[id]/DocumentViewerModal.tsx
 "use client";
 
-import React from 'react';
-import { Document as DocType } from '@/types';
-import { Download, Trash2, X, FileText, ExternalLink } from 'lucide-react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, Trash2, Download, FileText, ExternalLink } from 'lucide-react';
+import { Document as DocType } from "@/types";
+import Button from '@/app/components/ui/Button';
+import Portal from '@/app/components/ui/Portal'; // 1. Импортируем Портал
 
 interface DocumentViewerModalProps {
-    doc: DocType | null;
-    onClose: () => void;
-    canEdit: boolean;
-    onDelete: () => void;
+  doc: DocType | null;
+  onClose: () => void;
+  canEdit: boolean;
+  onDelete: () => void;
 }
 
 const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({ doc, onClose, canEdit, onDelete }) => {
-    // Используем AnimatePresence в родительском компоненте или здесь для анимации появления/исчезновения
-    // Но так как компонент монтируется/размонтируется по условию, анимацию лучше делать внутри
-    if (!doc) return null;
+  
+  useEffect(() => {
+    if (doc) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [doc]);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const fileSrc = `${appUrl}${doc.filePath}`;
-    const isImage = doc.fileType.startsWith('image/');
-    const isPdf = doc.fileType === 'application/pdf';
+  if (!doc) return null;
 
-    return (
-        <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center sm:p-4">
-                {/* 1. Затемненный фон (Backdrop) */}
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={onClose}
-                    className="absolute inset-0 bg-black/95 backdrop-blur-md cursor-pointer"
-                />
+  const isImage = doc.fileType.startsWith('image/');
+  const isPdf = doc.fileType === 'application/pdf';
 
-                {/* 2. Контейнер контента */}
-                <motion.div 
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    className="relative z-10 w-full h-full max-w-6xl max-h-[85vh] flex items-center justify-center p-4 pointer-events-none"
-                >
-                    {/* pointer-events-auto нужен, чтобы можно было взаимодействовать с контентом (например, скроллить PDF) */}
-                    <div className="pointer-events-auto relative w-full h-full flex items-center justify-center">
-                        
-                        {/* Вариант: Картинка */}
-                        {isImage && (
-                            <img 
-                                src={fileSrc} 
-                                alt={doc.fileName} 
-                                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
-                            />
-                        )}
+  return (
+    // 2. Оборачиваем в Портал
+    <Portal>
+      <AnimatePresence>
+        {doc && (
+          // 3. Обновляем контейнер: z-[9999], h-[100dvh], w-screen, fixed inset-0
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 h-[100dvh] w-screen">
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="absolute inset-0 bg-gray-900/80 backdrop-blur-md"
+            />
 
-                        {/* Вариант: PDF */}
-                        {isPdf && (
-                            <iframe
-                                src={fileSrc}
-                                className="w-full h-full bg-white rounded-xl shadow-2xl border-0"
-                                title={doc.fileName}
-                            />
-                        )}
-
-                        {/* Вариант: Неизвестный формат */}
-                        {!isImage && !isPdf && (
-                            <div className="bg-white/10 backdrop-blur-md p-10 rounded-3xl text-center border border-white/20">
-                                <FileText size={64} className="text-white mx-auto mb-4 opacity-50" />
-                                <h3 className="text-xl font-bold text-white mb-2">{doc.fileName}</h3>
-                                <p className="text-gray-400 mb-6">Предпросмотр недоступен для этого типа файла</p>
-                                <a 
-                                    href={fileSrc} 
-                                    download={doc.fileName}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-bold hover:bg-gray-200 transition-colors"
-                                >
-                                    <Download size={20} />
-                                    Скачать файл
-                                </a>
-                            </div>
-                        )}
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="relative w-full max-w-4xl bg-white/95 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl border border-white/60 overflow-hidden max-h-[90vh] flex flex-col z-10"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Хедер */}
+                <div className="px-6 py-4 border-b border-gray-100/50 flex items-center justify-between shrink-0 bg-white/50">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2 bg-brand-primary/10 text-brand-primary rounded-xl shrink-0">
+                            <FileText size={24} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 truncate" title={doc.fileName}>
+                            {doc.fileName}
+                        </h3>
                     </div>
-                </motion.div>
-
-                {/* 3. Парящая панель управления (Header/Toolbar) */}
-                <motion.div 
-                    initial={{ y: -50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -50, opacity: 0 }}
-                    className="absolute top-0 left-0 right-0 p-4 z-20 flex justify-between items-start pointer-events-none"
-                >
-                    {/* Название файла (Слева) */}
-                    <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full text-white pointer-events-auto max-w-[200px] sm:max-w-md truncate shadow-lg">
-                        <span className="text-sm font-medium">{doc.fileName}</span>
-                    </div>
-
-                    {/* Кнопка закрытия (Справа) */}
-                    <button 
-                        onClick={onClose}
-                        className="bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/10 p-2 rounded-full text-white pointer-events-auto transition-all hover:rotate-90 shadow-lg"
-                    >
-                        <X size={24} />
-                    </button>
-                </motion.div>
-
-                {/* 4. Парящая панель действий (Bottom Bar) */}
-                <motion.div 
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 50, opacity: 0 }}
-                    className="absolute bottom-6 z-20 pointer-events-auto"
-                >
-                    <div className="flex items-center gap-3 bg-white/10 backdrop-blur-xl border border-white/20 p-2 rounded-2xl shadow-2xl">
-                        {/* Скачать */}
-                        <a 
-                            href={fileSrc} 
-                            download={doc.fileName}
-                            className="p-3 text-white hover:bg-white/20 rounded-xl transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-                            title="Скачать"
-                        >
-                            <Download size={24} />
-                            <span className="text-[10px] font-bold opacity-70">Save</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <a href={doc.filePath} download target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-brand-primary">
+                            <Download size={20} />
                         </a>
-
-                        {/* Открыть в новом окне (для PDF полезно) */}
-                        <a 
-                            href={fileSrc} 
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-3 text-white hover:bg-white/20 rounded-xl transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-                            title="Открыть в новой вкладке"
+                        <button 
+                            onClick={onClose}
+                            className="p-2 bg-gray-50 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
                         >
-                            <ExternalLink size={24} />
-                            <span className="text-[10px] font-bold opacity-70">Open</span>
-                        </a>
-
-                        {/* Удалить (Только если можно) */}
-                        {canEdit && (
-                            <>
-                                <div className="w-px h-8 bg-white/20 mx-1" /> {/* Разделитель */}
-                                <button 
-                                    onClick={onDelete}
-                                    className="p-3 text-red-400 hover:bg-red-500/20 hover:text-red-200 rounded-xl transition-colors flex flex-col items-center gap-1 min-w-[60px]"
-                                    title="Удалить"
-                                >
-                                    <Trash2 size={24} />
-                                    <span className="text-[10px] font-bold opacity-70">Del</span>
-                                </button>
-                            </>
-                        )}
+                            <X size={20} />
+                        </button>
                     </div>
-                </motion.div>
-            </div>
-        </AnimatePresence>
-    );
+                </div>
+
+                {/* Контент */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-gray-50/50 flex items-center justify-center relative">
+                    {isImage ? (
+                        <img src={doc.filePath} alt={doc.fileName} className="max-w-full max-h-full object-contain rounded-2xl shadow-sm" />
+                    ) : isPdf ? (
+                        <iframe src={`${doc.filePath}#toolbar=0`} className="w-full h-full rounded-2xl shadow-sm border border-gray-200" title={doc.fileName} />
+                    ) : (
+                         <div className="flex flex-col items-center justify-center text-gray-400 py-10">
+                            <FileText size={64} className="mb-4 opacity-50" />
+                            <p>Предпросмотр недоступен</p>
+                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center gap-2 text-brand-primary font-bold hover:underline">
+                                <ExternalLink size={16} /> Открыть в новой вкладке
+                            </a>
+                        </div>
+                    )}
+                </div>
+
+                {/* Футер с действиями */}
+                {canEdit && (
+                    <div className="px-6 py-4 border-t border-gray-100/50 bg-white/50 flex justify-end shrink-0">
+                        <Button variant="danger" onClick={onDelete} className="rounded-xl">
+                            <Trash2 size={18} className="mr-2" />
+                            Удалить документ
+                        </Button>
+                    </div>
+                )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </Portal>
+  );
 };
 
 export default DocumentViewerModal;
