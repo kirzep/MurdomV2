@@ -1,116 +1,100 @@
 // public/sw.js
+const CACHE_NAME = 'murdom-cache-v1';
 
-// ИЗМЕНЕНИЕ: Увеличиваем версию до v16, чтобы запустить обновление
-const CACHE_VERSION = 'v20';
-const CACHE_NAME = `cat-archive-shell-${CACHE_VERSION}`;
-
-const FILES_TO_CACHE = [
+// 1. Файлы, которые кешируем сразу (чтобы приложение открывалось мгновенно)
+const STATIC_ASSETS = [
   '/',
   '/dashboard',
-  '/profile',
-  '/staff',
   '/login',
-  // ИЗМЕНЕНИЕ: Убираем параметр '?v=2.1.0' отсюда.
-  // Браузер все равно запросит новую версию манифеста благодаря ссылке в HTML.
-  '/manifest.json', 
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/favicon.ico',
-  '/icons/apple-touch-icon.png'
+  '/manifest.json',
+  '/icons/favicon.ico'
 ];
 
+// УСТАНОВКА
 self.addEventListener('install', (event) => {
-  console.log(`[Service Worker] Установка версии ${CACHE_VERSION}...`);
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[Service Worker] Кеширование оболочки приложения...');
-        return cache.addAll(FILES_TO_CACHE);
-      })
-      .then(() => {
-        console.log('[Service Worker] Установка завершена.');
-        return self.skipWaiting();
-      })
-      .catch(err => {
-        console.error('[Service Worker] Ошибка при установке (addAll):', err);
-      })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
+  self.skipWaiting();
 });
 
+// АКТИВАЦИЯ (Чистка старого кеша)
 self.addEventListener('activate', (event) => {
-  console.log(`[Service Worker] Активация версии ${CACHE_VERSION}...`);
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Удаление старого кеша:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-        console.log('[Service Worker] Активация завершена.');
-        return self.clients.claim();
-    })
+    caches.keys().then((keys) => Promise.all(
+      keys.map((key) => {
+        if (key !== CACHE_NAME) return caches.delete(key);
+      })
+    )).then(() => self.clients.claim())
   );
 });
 
+// ПЕРЕХВАТ ЗАПРОСОВ (Самое важное!)
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
+  // Игнорируем расширения браузера и не-GET запросы
+  if (!event.request.url.startsWith('http') || event.request.method !== 'GET') return;
 
-  if (request.url.startsWith('chrome-extension://')) {
-    return;
-  }
-  
-  if (request.mode === 'navigate') {
+  const isApi = event.request.url.includes('/api/');
+  const isNextStatic = event.request.url.includes('/_next/static/');
+
+  if (isApi) {
+    // СТРАТЕГИЯ 1: Network First (Для данных о котах)
+    // Сначала идем в интернет за свежими данными. Если интернета нет — показываем кеш.
     event.respondWith(
-      fetch(request).catch(() => {
-        console.log('[SW] Навигация не удалась, возвращаем / из кеша.');
-        return caches.match('/');
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+  } else {
+    // СТРАТЕГИЯ 2: Stale-While-Revalidate (Для картинок, стилей и скриптов)
+    // Показываем кеш мгновенно, а в фоне обновляем его на будущее.
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
+          return networkResponse;
+        });
+        return cachedResponse || fetchPromise;
       })
     );
-    return;
   }
-
-  if (request.method === 'GET') {
-    event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-          return networkResponse;
-        })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
-
-  return event.respondWith(fetch(request));
 });
 
+// --- ТВОЙ КОД УВЕДОМЛЕНИЙ (ОСТАВЛЯЕМ) ---
 
-// Обработчики Push-уведомлений (без изменений)
 self.addEventListener('push', (event) => {
-    const data = event.data ? event.data.json() : { title: 'Архив Кошек', body: 'У вас новое уведомление.' };
-    event.waitUntil(self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png',
-      data: data.data || {}
-    }));
+    const data = event.data ? event.data.json() : { title: 'Мурдом', body: 'Новое событие' };
+    
+    event.waitUntil(
+        self.registration.showNotification(data.title, {
+            body: data.body,
+            icon: '/icons/icon-192x192.png', // Убедись, что этот файл есть
+            badge: '/icons/icon-192x192.png',
+            vibrate: [100, 50, 100],
+            data: {
+                url: data.url || '/dashboard'
+            }
+        })
+    );
 });
+
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const urlToOpen = new URL(event.notification.data.url || '/', self.location.origin).href;
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        for (const client of clientList) {
-          if (client.url === urlToOpen && 'focus' in client) return client.focus();
-        }
-        if (clients.openWindow) return clients.openWindow(urlToOpen);
-      })
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+            // Если вкладка открыта - фокусируемся, если нет - открываем
+            for (const client of clientList) {
+                if (client.url.includes('/dashboard') && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            if (clients.openWindow) {
+                return clients.openWindow(event.notification.data.url || '/dashboard');
+            }
+        })
     );
 });
