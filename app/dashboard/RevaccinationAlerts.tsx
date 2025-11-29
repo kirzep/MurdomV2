@@ -18,6 +18,10 @@ export default function RevaccinationAlerts({ alerts }: RevaccinationAlertsProps
   const [isExpanded, setIsExpanded] = useState(false);
   const router = useRouter();
 
+  // ИСПРАВЛЕНИЕ: Добавляем безопасное значение по умолчанию (пустую строку), 
+  // если переменная не задана.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+
   if (alerts.length === 0) return null;
 
   // Считаем статистику для заголовка
@@ -106,7 +110,8 @@ export default function RevaccinationAlerts({ alerts }: RevaccinationAlertsProps
                                 {/* Мини-аватарка */}
                                 {cat.avatarUrl ? (
                                     <img 
-                                        src={cat.avatarUrl.startsWith('data:') ? cat.avatarUrl : `${process.env.NEXT_PUBLIC_APP_URL}${cat.avatarUrl}`} 
+                                        // ИСПРАВЛЕНИЕ: Используем переменную appUrl с защитой от undefined
+                                        src={cat.avatarUrl.startsWith('data:') ? cat.avatarUrl : `${appUrl}${cat.avatarUrl}`} 
                                         alt={cat.name}
                                         className="w-8 h-8 rounded-full object-cover border border-white shadow-sm shrink-0"
                                     />

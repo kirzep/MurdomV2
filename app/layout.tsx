@@ -25,6 +25,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent', // ИСПРАВЛЕНО: делает статус бар прозрачным поверх контента
     title: 'Архив Кошек',
   },
+  other: {
+    "mobile-web-app-capable": "yes", 
+  },
   icons: {
     icon: `/icons/favicon.ico?v=${appVersion}`,
     shortcut: `/icons/favicon-16x16.png?v=${appVersion}`,
