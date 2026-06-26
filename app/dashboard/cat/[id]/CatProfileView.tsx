@@ -7,6 +7,7 @@ import CatProfileHeader from "./CatProfileHeader";
 import NotesSection from "./NotesSection";
 import TreatmentsSection from "./TreatmentsSection";
 import DocumentsSection from "./DocumentsSection";
+import CatTimeline from "./CatTimeline";
 import EditCatModal from "./EditCatModal";
 import Modal from "@/app/components/ui/Modal";
 import DocumentViewerModal from "./DocumentViewerModal";
@@ -325,22 +326,25 @@ export default function CatProfileView({ cat, auditLogs, canEdit, onDataChange }
                     
                     {/* Правая колонка (Процедуры) */}
                     <div className="lg:col-span-8">
-                        <TreatmentsSection 
-                            cat={cat} 
-                            canEdit={canEdit} 
-                            onAddClick={() => { 
+                        <TreatmentsSection
+                            cat={cat}
+                            canEdit={canEdit}
+                            onAddClick={() => {
                                 setTreatmentForm({
-                                    type: TreatmentType.WORMS, 
-                                    date: new Date().toISOString().split('T')[0], 
-                                    productName: '', 
+                                    type: TreatmentType.WORMS,
+                                    date: new Date().toISOString().split('T')[0],
+                                    productName: '',
                                     vaccinationStage: 'first'
-                                }); 
-                                setIsAddTreatmentModalOpen(true); 
-                            }} 
-                            onDeleteClick={handleDeleteTreatment} 
+                                });
+                                setIsAddTreatmentModalOpen(true);
+                            }}
+                            onDeleteClick={handleDeleteTreatment}
                         />
                     </div>
                 </div>
+
+                {/* Хроника событий */}
+                <CatTimeline cat={cat} />
             </div>
         </motion.div>
     );
