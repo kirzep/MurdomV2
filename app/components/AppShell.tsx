@@ -13,7 +13,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   // Проверяем, нужно ли скрывать панель.
   // Для страницы регистрации используем startsWith, так как у нее динамический адрес.
-  const hideNav = noNavPaths.includes(pathname) || pathname.startsWith('/register');
+  const hideNav = noNavPaths.includes(pathname) || pathname.startsWith('/register') || pathname.startsWith('/adopt');
 
   return (
     <>

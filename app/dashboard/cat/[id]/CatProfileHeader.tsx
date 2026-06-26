@@ -4,7 +4,7 @@
 import { Cat } from "@/types";
 import { format } from "date-fns";
 import { ru } from 'date-fns/locale';
-import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle, Share2 } from "lucide-react"; // Share2 added for future use maybe?
+import { Calendar, Gift, Edit, Trash2, Info, AlertTriangle, Share2, Check } from "lucide-react";
 import { getRevaccinationStatus, RevaccinationInfo } from "@/lib/revaccinationHelper";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
@@ -25,10 +25,27 @@ const pluralizeYears = (age: number) => {
 
 const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdit, onDelete, onInfoClick }) => {
   const [alertInfo, setAlertInfo] = useState<RevaccinationInfo>({ status: null, dueDate: null, isOverdue: false, message: '' });
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     setAlertInfo(getRevaccinationStatus(cat));
   }, [cat]);
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/adopt/${cat.id}`;
+    const data = { title: `${cat.name} ищет дом`, text: `Помогите ${cat.name} найти дом!`, url };
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try { await navigator.share(data); } catch { /* отменено */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      } catch { /* clipboard недоступен */ }
+    }
+  };
+
+  const canShare = cat.status !== 'Умерли';
 
   const getAge = (birthYear: number | null) => {
     if (!birthYear) return null;
@@ -136,8 +153,17 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
 
             {/* Кнопки действий (Десктоп) */}
             <div className="hidden sm:flex flex-col gap-2 shrink-0">
-                <button 
-                    onClick={onInfoClick} 
+                {canShare && (
+                    <button
+                        onClick={handleShare}
+                        className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-500 hover:text-brand-primary hover:border-brand-primary hover:shadow-lg transition-all active:scale-95"
+                        title="Поделиться карточкой для пристройства"
+                    >
+                        {shareCopied ? <Check size={22} className="text-emerald-500" /> : <Share2 size={24} />}
+                    </button>
+                )}
+                <button
+                    onClick={onInfoClick}
                     className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border border-gray-200 text-gray-500 hover:text-brand-primary hover:border-brand-primary hover:shadow-lg transition-all active:scale-95"
                     title="Информация о создателе"
                 >
@@ -166,7 +192,15 @@ const CatProfileHeader: React.FC<CatProfileHeaderProps> = ({ cat, canEdit, onEdi
         </div>
 
         {/* Кнопки действий (Мобильные) */}
-        <div className="sm:hidden grid grid-cols-3 gap-3 mt-8 pt-6 border-t border-gray-100">
+        <div className="sm:hidden flex justify-around gap-3 mt-8 pt-6 border-t border-gray-100">
+            {canShare && (
+                <button onClick={handleShare} className="flex flex-col items-center gap-1 group">
+                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors">
+                        {shareCopied ? <Check size={20} className="text-emerald-500" /> : <Share2 size={20} />}
+                    </div>
+                    <span className="text-[10px] font-medium text-gray-500">{shareCopied ? 'Готово' : 'Поделиться'}</span>
+                </button>
+            )}
             <button onClick={onInfoClick} className="flex flex-col items-center gap-1 group">
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors">
                     <Info size={20}/>
