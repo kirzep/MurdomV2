@@ -15,6 +15,7 @@ import { useDebounce } from 'use-debounce';
 import LoadingScreen from '../components/LoadingScreen';
 import PatchNotesModal from '../components/PatchNotesModal';
 import RevaccinationAlerts from './RevaccinationAlerts';
+import ShelterStats from './ShelterStats';
 import { getRevaccinationStatus, RevaccinationInfo } from '@/lib/revaccinationHelper';
 
 const containerVariants = {
@@ -183,13 +184,12 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
                           <Button 
                               onClick={() => setIsAddCatModalOpen(true)} 
                               className="
-                                  !p-0 h-12 w-12 sm:w-auto sm:px-5 rounded-2xl 
-                                  bg-gradient-to-tr from-brand-primary to-rose-400 
+                                  px-0 sm:px-5 h-12 w-12 sm:w-auto rounded-2xl
+                                  bg-gradient-to-tr from-brand-primary to-rose-400
                                   hover:from-brand-primary-hover hover:to-rose-500
-                                  shadow-lg shadow-brand-primary/25 
+                                  shadow-lg shadow-brand-primary/25
                                   hover:shadow-xl hover:shadow-brand-primary/40 hover:-translate-y-0.5
                                   active:scale-95
-                                  transition-all duration-300
                                   flex items-center justify-center gap-2
                               "
                           >
@@ -203,7 +203,12 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
         </header>
           
         <main className="container mx-auto p-4 pb-32">
-            
+
+            {/* Сводка приюта */}
+            <div className="max-w-4xl mx-auto mb-6">
+                <ShelterStats cats={cats} alerts={vaccinationAlerts} />
+            </div>
+
             {/* Вкладки фильтра */}
             <div className="flex justify-center mb-8">
                 <div className="flex p-1.5 bg-white/60 backdrop-blur-xl border border-white/60 rounded-[1.5rem] shadow-sm relative z-10">
@@ -214,7 +219,7 @@ export default function DashboardClient({ loadingIcons }: { loadingIcons: string
                                 key={tab.id}
                                 onClick={() => setActiveFilter(tab.id)}
                                 className={`
-                                    relative px-4 sm:px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center gap-2
+                                    relative px-4 sm:px-6 py-2.5 rounded-2xl text-xs sm:text-sm font-bold btn-spring active:scale-95 flex items-center gap-2
                                     ${isActive ? 'text-brand-primary' : 'text-gray-500 hover:text-gray-700'}
                                 `}
                             >
