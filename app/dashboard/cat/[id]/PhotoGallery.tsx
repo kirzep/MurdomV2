@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Portal from '@/app/components/ui/Portal';
 import useLongPress from '@/hooks/useLongPress';
 import { Loader2 } from 'lucide-react';
+import Skeleton from '@/app/components/ui/Skeleton';
 
 interface Photo {
     id: string;
@@ -147,7 +148,20 @@ const PhotoGallery: React.FC<PhotoGalleryProps> = ({ cat, canEdit, onDataChange 
         );
     };
     
-    if (isLoading) return <div className="h-[30vh] flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" /></div>;
+    if (isLoading) return (
+        <div className="bg-white/80 backdrop-blur-xl border border-white shadow-lg p-6 sm:p-8 rounded-3xl min-h-[50vh]">
+            <div className="flex items-center gap-3 mb-6">
+                <Skeleton className="w-10 h-10" rounded="rounded-xl" />
+                <Skeleton className="h-6 w-40" rounded="rounded-lg" />
+                <Skeleton className="h-4 w-14 ml-auto" rounded="rounded-md" />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {Array.from({ length: 10 }).map((_, i) => (
+                    <Skeleton key={i} className="aspect-square w-full" rounded="rounded-2xl" />
+                ))}
+            </div>
+        </div>
+    );
 
     return (
         <div className="bg-white/80 backdrop-blur-xl border border-white shadow-lg p-6 sm:p-8 rounded-3xl min-h-[50vh]">

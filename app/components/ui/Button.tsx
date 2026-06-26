@@ -29,11 +29,11 @@ const Button = <C extends React.ElementType = 'button'>({
   const Component = as || 'button';
 
   const baseClasses = `
-    relative inline-flex items-center justify-center 
-    font-bold transition-all duration-200 
-    focus:outline-none focus:ring-2 focus:ring-offset-2 
+    relative inline-flex items-center justify-center
+    font-bold btn-spring
+    focus:outline-none focus:ring-2 focus:ring-offset-2
     disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100
-    active:scale-[0.98] hover:-translate-y-0.5 active:translate-y-0
+    active:scale-95 hover:-translate-y-0.5 active:translate-y-0
   `;
 
   const variantClasses = {

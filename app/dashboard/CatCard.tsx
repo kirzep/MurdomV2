@@ -18,8 +18,12 @@ interface CatCardProps {
 }
 
 const cardVariants = {
-  hidden: { x: -20, opacity: 0 },
-  visible: { x: 0, opacity: 1, transition: { duration: 0.3, ease: "easeOut" } }
+  hidden: { y: 24, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 320, damping: 26 }
+  }
 };
 
 const CatCard: React.FC<CatCardProps> = ({ 
@@ -65,27 +69,27 @@ const CatCard: React.FC<CatCardProps> = ({
     <motion.div
       variants={cardVariants}
       layout
+      whileHover={isSelectionMode ? undefined : { y: -6 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 28 }}
       className={`
         relative group w-full cursor-pointer
         flex items-center gap-4 p-3
         rounded-2xl
-        
-        /* --- ИЗМЕНЕНИЯ ЗДЕСЬ (КОНТРАСТ) --- */
-        /* Делаем фон более плотным белым (было white/60, стало white/80) */
-        bg-white/80 
-        /* Сильный блюр, чтобы размыть текстуру фона под карточкой */
-        backdrop-blur-xl 
-        /* Добавляем четкую белую границу */
-        border border-white 
-        /* Усиливаем тень для "отрыва" от фона */
+
+        /* --- КОНТРАСТ --- */
+        bg-white/80
+        backdrop-blur-xl
+        border border-white
         shadow-[0_4px_20px_-12px_rgba(0,0,0,0.15)]
-        hover:shadow-[0_8px_25px_-10px_rgba(0,0,0,0.2)]
-        
-        transition-all duration-300
+        hover:shadow-[0_12px_30px_-10px_rgba(93,0,30,0.22)]
+
+        /* transform отдаём framer'у, CSS-переход только на цвет/тень */
+        transition-[background-color,box-shadow,border-color] duration-300
         hover:bg-white
-        
-        ${isSelected 
-            ? 'ring-2 ring-brand-primary bg-brand-primary/10 border-brand-primary/30' 
+
+        ${isSelected
+            ? 'ring-2 ring-brand-primary bg-brand-primary/10 border-brand-primary/30'
             : ''
         }
       `}
